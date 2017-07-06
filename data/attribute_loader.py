@@ -23,6 +23,14 @@ np.random.seed(123456)
 random.seed(123)
 
 
+def invert_permutation(p):
+    '''The argument p is assumed to be some permutation of 0, 1, ..., len(p)-1. 
+    Returns an array s, where s[i] gives the index of i in p.
+    '''
+    s = {ind:i for i, ind in enumerate(p)}
+    return s
+
+
 def _load_imsitu_verbs():
     """
     :return: a list of imsitu verbs
@@ -60,15 +68,36 @@ def attributes_split(imsitu_only=False):
     :param imsitu_only: if true, only return data for verbs in imsitu
     :return: train, test, val dataframes 
     """
-    df = _load_attributes(imsitu_only)
-
-    # TODO: WE NEED SOME RANGE COL
-    train_atts = df[df['train'] == True].drop(['train','val','test'],1).set_index('template')
-    val_atts = df[df['val'] == True].drop(['train','val','test'],1).set_index('template')
-    test_atts = df[df['test'] == True].drop(['train','val','test'],1).set_index('template')
+    df = _load_attributes(imsitu_only).reset_index()
+    train_atts = df[df['train']].drop(['train','val','test'],1).set_index('template')
+    val_atts = df[df['val']].drop(['train','val','test'],1).set_index('template')
+    test_atts = df[df['test']].drop(['train','val','test'],1).set_index('template')
     return train_atts, val_atts, test_atts
 
-#
+
+class Attributes(object):
+    def __init__(self, use_train=True, use_val=False, use_test=False, imsitu_only=False):
+        """
+        Use this class to represent a chunk of attributes for each of the test labels. 
+        This is needed because at test time we'll need to compare against all of the attributes
+                
+        :param imsitu_only: 
+        """
+        assert use_train or use_val or use_test
+
+        train_atts, val_atts, test_atts = attributes_split(imsitu_only)
+        cat_atts = [a for a, use_a in zip([train_atts, val_atts, test_atts],
+                                          [use_train, use_val, use_test]) if use_a]
+        self.atts_df = pd.concat(cat_atts)
+
+        # perm is a permutation from the normal index to the new one.
+        # This can be used for getting the attributes for Imsitu
+        self.ind_perm = invert_permutation(self.atts_df['index'].as_matrix())
+
+
+
+
+
 # class AttributesDataLoader(object):
 #     def __init__(self, batch_size=64, filter_imsitu=False):
 #         """
