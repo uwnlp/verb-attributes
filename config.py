@@ -37,7 +37,7 @@ GLOVE = path('glove.6B.300d')
 WORD2VEC = path('glove.6B.300d')
 
 CHECKPOINT_PATH = os.path.join(ROOT_PATH, 'checkpoints')
-
+INIT_SCALE= 2e-5
 
 
 class ModelConfig(object):

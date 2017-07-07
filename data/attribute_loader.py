@@ -20,18 +20,19 @@ np.random.seed(123456)
 random.seed(123)
 
 COLUMNS = ['intrans', 'trans_pers', 'trans_obj', 'atomicity', 'energy',
-       'time', 'solitary', 'bodyparts_Arms', 'bodyparts_Head',
-       'bodyparts_Legs', 'bodyparts_Torso', 'bodyparts_other',
-       'intrans_effect_0', 'intrans_effect_1', 'intrans_effect_2',
-       'intrans_effect_3', 'trans_obj_effect_0', 'trans_obj_effect_1',
-       'trans_obj_effect_2', 'trans_obj_effect_3', 'trans_pers_effect_0',
-       'trans_pers_effect_1', 'trans_pers_effect_2', 'trans_pers_effect_3']
+           'time', 'solitary', 'bodyparts_Arms', 'bodyparts_Head',
+           'bodyparts_Legs', 'bodyparts_Torso', 'bodyparts_other',
+           'intrans_effect_0', 'intrans_effect_1', 'intrans_effect_2',
+           'intrans_effect_3', 'trans_obj_effect_0', 'trans_obj_effect_1',
+           'trans_obj_effect_2', 'trans_obj_effect_3', 'trans_pers_effect_0',
+           'trans_pers_effect_1', 'trans_pers_effect_2', 'trans_pers_effect_3']
+
 
 def invert_permutation(p):
     '''The argument p is assumed to be some permutation of 0, 1, ..., len(p)-1. 
     Returns an array s, where s[i] gives the index of i in p.
     '''
-    s = {ind:i for i, ind in enumerate(p)}
+    s = {ind: i for i, ind in enumerate(p)}
     return s
 
 
@@ -73,37 +74,121 @@ def attributes_split(imsitu_only=False):
     :return: train, test, val dataframes 
     """
     df = _load_attributes(imsitu_only).reset_index()
-    train_atts = df[df['train']].drop(['train','val','test'],1).set_index('template')
-    val_atts = df[df['val']].drop(['train','val','test'],1).set_index('template')
-    test_atts = df[df['test']].drop(['train','val','test'],1).set_index('template')
+    train_atts = df[df['train']].drop(['train', 'val', 'test'], 1).set_index('template')
+    val_atts = df[df['val']].drop(['train', 'val', 'test'], 1).set_index('template')
+    test_atts = df[df['test']].drop(['train', 'val', 'test'], 1).set_index('template')
     return train_atts, val_atts, test_atts
+
+
+def _load_defns(atts_df, is_test=False):
+    """
+    Loads a dataframe with the definition joined to the attributes.
+    
+    At test time, we only use the first definition per template.
+    
+    Importantly, some of the templates might lack definitions. To avoid this problem, we
+    drop the particle if this occurs. This works for all of the verbs in the test set :)
+    However, it means that some training verbs (such as "Unpocket") can't be used because they
+    don't have definitions.
+    
+    :param atts_df: Dataframe with attributes
+    :param is_test: If true, we'll drop everything except the first definition.
+                            
+    :return: A dataframe with the definitions.
+    """
+    verb_defns = pd.read_csv(DEFNS_PATH)
+    if is_test:
+        verb_defns = verb_defns.groupby('template').first().reset_index()
+
+    # Some phrases aren't going to have definitions. The fix is to drop off the
+    # particle...
+    verbs_with_defns = set(verb_defns['template'])
+    verbs_we_want = set(atts_df.index)
+    for v in (verbs_we_want - verbs_with_defns):
+        if len(v.split(' ')) == 1 and is_test:
+            raise ValueError("{} has no definition".format(v))
+        else:
+
+            append_defns = verb_defns[verb_defns['template'] == v.split(' ')[0]].copy()
+            append_defns['template'] = v
+
+            verb_defns = pd.concat((verb_defns, append_defns), ignore_index=True)
+
+    missing_verbs = verbs_we_want - set(verb_defns['template'])
+    if len(missing_verbs) != 0:
+        if is_test:
+            raise ValueError("Some verbs are missing: {}".format(missing_verbs))
+        else:
+            print("Some verbs are missing: {}".format(missing_verbs))
+
+    joined_df = verb_defns.join(atts_df, 'template', how='inner')
+    joined_df = joined_df.drop(['POS'], 1).set_index('template')
+    return joined_df
+
+
+def _get_template_emb(template, wv_dict, wv_arr):
+    """
+    Ideally, we'll get the word embedding directly. Otherwise, presumably it's a multiword
+    expression, and we'll get the average of the expressions. If these don't work, and it starts
+    with "un", we'll split on that.
+    
+    :param template: Possibly a multiword template
+    :param wv_dict: dictionary mapping tokens -> indices
+    :param wv_arr: Array of word embeddings
+    :return: The embedding for template
+    """
+    wv_index = wv_dict.get(template, None)
+    if wv_index is not None:
+        return wv_arr[wv_index]
+
+    if len(template.split(' ')) > 1:
+        t0, t1 = template.split(' ')
+        ind0 = wv_dict.get(t0, None)
+        ind1 = wv_dict.get(t1, None)
+        if (ind0 is None) or (ind1 is None):
+            raise ValueError("Error on {}".format(template))
+        return (wv_arr[ind0] + wv_arr[ind1]) / 2.0
+
+    if template.startswith('un'):
+        print("un-ning {}".format(template))
+        ind0 = wv_dict.get('un', None)
+        ind1 = wv_dict.get(template[2:], None)
+        if (ind0 is None) or (ind1 is None):
+            raise ValueError("Error on {}".format(template))
+        return (wv_arr[ind0] + wv_arr[ind1]) / 2.0
+
+    # This is in training set so should be OK
+    if template == 'cheerlead':
+        return (wv_arr[wv_dict['cheer']] + wv_arr[wv_dict['lead']]) / 2.0
+
+    raise ValueError("Problem with {}".format(template))
+
+
+def _load_vectors(words):
+    """
+    Loads word vectors of a list of words
+    :param words: 
+    :return: 
+    """
+    wv_dict, wv_arr, _ = load_word_vectors(GLOVE, 'glove.6B', 300)
+    embeds = torch.Tensor(len(words), 300).zero_()
+    for i, token in enumerate(words):
+        embeds[i] = _get_template_emb(token, wv_dict, wv_arr)
+    return embeds
 
 
 class Attributes(object):
     def __init__(self, use_train=True, use_val=False, use_test=False, imsitu_only=False,
-                       use_defns=False):
+                 use_defns=False):
         """
         Use this class to represent a chunk of attributes for each of the test labels. 
         This is needed because at test time we'll need to compare against all of the attributes
-                
-        :param imsitu_only: 
         """
         assert use_train or use_val or use_test
-
-        train_atts, val_atts, test_atts = attributes_split(imsitu_only)
-        cat_atts = [a for a, use_a in zip([train_atts, val_atts, test_atts],
-                                          [use_train, use_val, use_test]) if use_a]
-        self.atts_df = pd.concat(cat_atts)
-
-        # Get the definitions. At test time, we'll get the first definition.
+        self.atts_df = pd.concat([a for a, use_a in zip(attributes_split(imsitu_only),
+                                                        (use_train, use_val, use_test)) if use_a])
         if use_defns:
-            verb_defns = pd.read_csv(DEFNS_PATH)
-            if use_test:
-                verb_defns = verb_defns.groupby('template').first()
-
-
-
-
+            self.atts_df = _load_defns(self.atts_df, is_test=use_test)
 
         # perm is a permutation from the normal index to the new one.
         # This can be used for getting the attributes for Imsitu
@@ -113,17 +198,14 @@ class Attributes(object):
 
         self.atts_matrix = torch.LongTensor(self.atts_df[COLUMNS].as_matrix())
 
-        wv_dict, wv_arr, _ = load_word_vectors(GLOVE, 'glove.6B', 300)
+        self.embeds = _load_vectors(self.atts_df.index.values)
 
-        self.embeds = torch.Tensor(self.atts_matrix.size(0), 300).zero_()
+    def __len__(self):
+        return self.atts_df.shape[0]
 
-        # self.embeds.normal_(0, 1)
-        for i, token in enumerate(self.atts_df.index.values):
-            wv_index = wv_dict.get(token, None)
-            if wv_index is None and len(token.split(' ')) > 1:
-                wv_index = wv_dict.get(token.split(' ')[0], None)
+    def __getitem__(self, index):
+        return self.atts_matrix[index], self.embeds[index]
 
-            if wv_index is not None:
-                self.embeds[i] = wv_arr[wv_index]
-            else:
-                print("CANT FIND {}".format(token))
+    def cuda(self):
+        self.atts_matrix = self.atts_matrix.cuda()
+        self.embeds = self.embeds.cuda()
