@@ -13,6 +13,8 @@ from config import IMSITU_TRAIN_LIST, IMSITU_VAL_LIST, IMSITU_TEST_LIST, IMSITU_
 from torchvision.transforms import Scale, RandomCrop, CenterCrop, ToTensor, Normalize, Compose
 from PIL import Image
 from data.attribute_loader import Attributes
+from collections import namedtuple
+from torch.autograd import Variable
 
 LISTS = {
     'train': IMSITU_TRAIN_LIST,
@@ -72,9 +74,10 @@ class ImSitu(torch.utils.data.Dataset):
                                      use_test=self.use_test_verbs, imsitu_only=True)
 
         self.examples = []
-        for mode, to_use in zip(['train', 'val', 'test'], [self.use_train_images,
-                                                           self.use_val_images,
-                                                           self.use_test_images]):
+        for mode, to_use in zip(
+            ['train', 'val', 'test'], 
+            [self.use_train_images, self.use_val_images, self.use_test_images],
+        ):
             self.examples += [(fn, self.attributes.ind_perm[ind])
                               for fn, ind in _load_imsitu_file(mode)
                               if ind in self.attributes.ind_perm]
@@ -83,7 +86,6 @@ class ImSitu(torch.utils.data.Dataset):
 
     def __getitem__(self, index):
         fn, ind = self.examples[index]
-
         img = self.transform(Image.open(fn).convert('RGB'))
         return img, ind
 
@@ -107,31 +109,28 @@ class ImSitu(torch.utils.data.Dataset):
 
     def __len__(self):
         return len(self.examples)
-#
-#
-# class CudaDataLoader(torch.utils.data.DataLoader):
-#     """
-#     Iterates through the data, but also loads everything as a (cuda) variable
-#     """
-#
-#     def _load(self, item):
-#         img = Variable(item[0])
-#         caps_raw = item[1]
-#         ids = item[2]
-#         cap_selection = [cap[0] for cap in caps_raw]
-#
-#         preprocess_caps = [self.dataset.caps_field.preprocess(c) for c in cap_selection]
-#         batch_caps = self.dataset.caps_field.pad(preprocess_caps)
-#         seq, lens = self.dataset.caps_field.numericalize(batch_caps, train=self.dataset.is_train)
-#
-#         if torch.cuda.is_available():
-#             img = img.cuda()
-#
-#         return Batch(img, seq, lens, caps_raw, ids)
-#
-#     def __iter__(self):
-#         return (self._load(x) for x in super(CudaDataLoader, self).__iter__())
-#
+
+Batch = namedtuple('Batch', ['img', 'label'])
+
+
+class CudaDataLoader(torch.utils.data.DataLoader):
+    """
+    Iterates through the data, but also loads everything as a (cuda) variable
+    """
+
+    def _load(self, item):
+        img = Variable(item[0])
+        label = Variable(item[1])
+
+        if torch.cuda.is_available():
+            img = img.cuda()
+            label = label.cuda()
+
+        return Batch(img, label)
+
+    def __iter__(self):
+        return (self._load(x) for x in super(CudaDataLoader, self).__iter__())
+
 
 def transform(is_train=True, normalize=True):
     """
@@ -151,36 +150,21 @@ def transform(is_train=True, normalize=True):
         filters.append(Normalize(mean=[0.485, 0.456, 0.406],
                                  std=[0.229, 0.224, 0.225]))
     return Compose(filters)
-#
-#
-# # Handles the loading
-# def loader(batch_size=32, shuffle=True, num_workers=1, use_blur=False):
-#     vocab = build_vocab()
-#
-#     train_coco = CocoCaptions(root + '/train2014/', ann_folder + 'captions_train2014.json',
-#                               transform=transform(is_train=True, use_blur=use_blur))
-#     train_coco.caps_field = vocab
-#     train_coco.is_train = True
-#
-#     val_coco = CocoCaptions(root + '/val2014/', ann_folder + 'captions_val2014.json',
-#                             transform=transform(is_train=False, use_blur=use_blur))
-#     val_coco.caps_field = vocab
-#     val_coco.is_train = False
-#
-#     train_data_loader = CudaDataLoader(
-#         dataset=train_coco,
-#         batch_size=batch_size,
-#         shuffle=shuffle,
-#         num_workers=num_workers,
-#         collate_fn=collate_fn,
-#     )
-#
-#     val_data_loader = CudaDataLoader(
-#         dataset=val_coco,
-#         batch_size=batch_size,
-#         shuffle=False,
-#         num_workers=0,  # Load data in the main process
-#         collate_fn=collate_fn
-#     )
-#
-#     return train_data_loader, val_data_loader, vocab, val_coco.coco
+
+
+def collate_fn(data):
+    imgs, labels = zip(*data)
+    imgs = torch.stack(imgs, 0)
+    labels = torch.LongTensor(labels)
+    return imgs, labels
+
+
+if __name__ == '__main__':
+    train, val, test = ImSitu.splits()
+    train_dl = CudaDataLoader(
+        dataset=train,
+        batch_size=32,
+        shuffle=True,
+        num_workers=0,
+        collate_fn=collate_fn
+    )

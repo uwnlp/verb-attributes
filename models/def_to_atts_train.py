@@ -11,17 +11,17 @@ import torch
 from lib.misc import CosineRankingLoss, optimize, cosine_ranking_loss
 import numpy as np
 import time
-#Recommended hyperparameters
 
-args = ModelConfig(margin=0.1, lr=1e-5, batch_size=64, eps=1e-8, save_dir='def2atts_pretrain')
+# Recommended hyperparameters
+args = ModelConfig(margin=0.1, lr=2e-4, batch_size=64, eps=1e-8,
+                   ckpt='def2atts_pretrain/ckpt_50.tar', save_dir='def2atts_train')
 
 train_data, val_data = DictionaryChallengeDataset.splits()
 train_iter = PackedBucketIterator(train_data, batch_size=args.batch_size)
 val_iter = PackedBucketIterator(val_data, batch_size=args.batch_size, shuffle=False)
 
 
-m = DictionaryModel()
-m.load_wv(train_data.fields['text'].vocab.vectors)
+m = DictionaryModel(train_data.fields['text'].vocab)
 optimizer = optim.Adam(m.parameters(), lr=args.lr, eps=args.eps, betas=(args.beta1, args.beta2))
 
 if len(args.ckpt) > 0 and os.path.exists(args.ckpt):
@@ -50,8 +50,9 @@ def deploy(batch):
     cost, correct_contrib, inc_contrib = cosine_ranking_loss(pred, gt, margin=args.margin)
     return torch.mean(cost), torch.mean(correct_contrib)
 
-
-for epoch in range(1, 20):
+last_best_epoch = 1
+prev_best = 0.0
+for epoch in range(1, 51):
     val_l = []
     val_l_correct = []
     train_l = []
@@ -67,6 +68,14 @@ for epoch in range(1, 20):
         np.mean(val_l),
         np.mean(val_l_correct),
     ), flush=True)
+
+    if np.mean(val_l_correct) > prev_best:
+        prev_best = np.mean(val_l_correct)
+        last_best_epoch = epoch
+    else:
+        if last_best_epoch < (epoch - 3):
+            print("Early stopping at epoch {}".format(epoch))
+            break
 
     m.train()
     start_epoch = time.time()

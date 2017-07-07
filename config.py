@@ -23,6 +23,7 @@ def imsitu_path(fn):
 
 ATTRIBUTES_PATH = vwa_path('attributes.csv')
 ATTRIBUTES_SPLIT = vwa_path('attributes_split.csv')
+DEFNS_PATH = vwa_path('verb_definitions.csv')
 DICTIONARY_PATH = path('dictionary_challenge.pkl')
 
 IMSITU_LABELS = imsitu_path('OpenFrame500.tab')
