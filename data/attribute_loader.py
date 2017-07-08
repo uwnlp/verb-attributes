@@ -15,6 +15,7 @@ import pandas as pd
 from config import ATTRIBUTES_PATH, ATTRIBUTES_SPLIT, IMSITU_VERBS, GLOVE, DEFNS_PATH
 import torch
 from text.torchtext.vocab import load_word_vectors
+from torch.autograd import Variable
 
 np.random.seed(123456)
 random.seed(123)
@@ -178,7 +179,7 @@ def _load_vectors(words):
 
 
 class Attributes(object):
-    def __init__(self, use_train=True, use_val=False, use_test=False, imsitu_only=False,
+    def __init__(self, use_train=False, use_val=False, use_test=False, imsitu_only=False,
                  use_defns=False):
         """
         Use this class to represent a chunk of attributes for each of the test labels. 
@@ -187,7 +188,8 @@ class Attributes(object):
         assert use_train or use_val or use_test
         self.atts_df = pd.concat([a for a, use_a in zip(attributes_split(imsitu_only),
                                                         (use_train, use_val, use_test)) if use_a])
-        if use_defns:
+        self.use_defns = use_defns
+        if self.use_defns:
             self.atts_df = _load_defns(self.atts_df, is_test=use_test)
 
         # perm is a permutation from the normal index to the new one.
@@ -196,16 +198,32 @@ class Attributes(object):
 
         self.domains = [(c, len(self.atts_df[c].unique())) for c in COLUMNS]
 
-        self.atts_matrix = torch.LongTensor(self.atts_df[COLUMNS].as_matrix())
-
-        self.embeds = _load_vectors(self.atts_df.index.values)
+        self.atts_matrix = Variable(torch.LongTensor(self.atts_df[COLUMNS].as_matrix()),
+                                    volatile=not use_train)
+        self.embeds = Variable(_load_vectors(self.atts_df.index.values),
+                               volatile=not use_train)
 
     def __len__(self):
         return self.atts_df.shape[0]
 
     def __getitem__(self, index):
+        if self.use_defns:
+            return self.atts_matrix[index], self.embeds[index], self.atts_df['defn'].iloc[index]
         return self.atts_matrix[index], self.embeds[index]
 
-    def cuda(self):
-        self.atts_matrix = self.atts_matrix.cuda()
-        self.embeds = self.embeds.cuda()
+    def cuda(self, device_id=None):
+        self.atts_matrix = self.atts_matrix.cuda(device_id)
+        self.embeds = self.embeds.cuda(device_id)
+
+    @classmethod
+    def splits(cls, use_defns=False,cuda=True):
+        train = cls(use_train=True, use_val=False, use_test=False, use_defns=use_defns)
+        val = cls(use_train=False, use_val=True, use_test=False, use_defns=use_defns)
+        test = cls(use_train=False, use_val=False, use_test=True, use_defns=use_defns)
+
+        if cuda:
+            train.cuda()
+            val.cuda()
+            test.cuda()
+
+        return train, val, test

@@ -8,47 +8,7 @@ from text.torchtext.data import Field, Dataset, Example, BucketIterator
 import dill as pkl
 from data.attribute_loader import _load_attributes
 import random
-from collections import namedtuple
-from torch.nn.utils.rnn import pack_padded_sequence, PackedSequence
-import torch
-from torch.autograd import Variable
-
-DictionaryExample = namedtuple('DictionaryExample', ['words', 'defns', 'words_raw', 'defns_raw'])
-
-
-class PackedBucketIterator(BucketIterator):
-    def __init__(self, dataset, batch_size, **kwargs):
-        super(PackedBucketIterator, self).__init__(dataset, batch_size,
-                                                   sort_key=lambda x: -len(x[1]),
-                                                   repeat=False,
-                                                   **kwargs)
-
-    def __iter__(self):
-        self.init_epoch()
-        for minibatch in self.batches:
-            self.iterations += 1
-
-            words, defns = zip(*minibatch)
-            words_tensor = torch.stack([
-                self.dataset.fields['label'].vocab.vectors[
-                    self.dataset.fields['label'].vocab.stoi[x]
-                ] for x in words
-            ]).cuda()
-            words_var = Variable(words_tensor, volatile=not self.train)
-
-            defns_padded, lengths = self.dataset.fields['text'].pad(defns)
-            defns_tensor = torch.LongTensor([
-                [self.dataset.fields['text'].vocab.stoi[x] for x in ex] for ex in defns_padded
-            ])
-
-            defns_packed_ = pack_padded_sequence(defns_tensor, lengths, batch_first=True)
-            packed_data = defns_packed_.data.cuda(self.device)
-            packed_data = Variable(packed_data, volatile=not self.train)
-
-            defns_packed = PackedSequence(packed_data, defns_packed_.batch_sizes)
-
-            de = DictionaryExample(words_var, defns_packed, words, [' '.join(d) for d in defns])
-            yield de
+from lib.defn_iterator import DictionaryChallengeIter
 
 
 class DictionaryChallengeDataset(Dataset):
@@ -139,5 +99,5 @@ def load_vocab(vocab_size=30000,
 
 if __name__ == '__main__':
     train, val = DictionaryChallengeDataset.splits()
-    train_iter = PackedBucketIterator(train, batch_size=32, sort_key=lambda x: -len(x[1]))
+    train_iter = DictionaryChallengeIter(train, batch_size=32, sort_key=lambda x: -len(x[1]))
     blah = next(iter(train_iter))
