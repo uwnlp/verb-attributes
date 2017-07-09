@@ -4,7 +4,7 @@ Script to pretrain the LSTM -> linear model for definition to attributes
 
 from data.dictionary_dataset import load_vocab
 from lib.attribute_loss import AttributeLoss, evaluate_accuracy
-from lib.defn_iterator import DictionaryAttributesIter
+from lib.bucket_iterator import DictionaryAttributesIter
 from config import ModelConfig
 from lib.att_prediction import DictionaryModel
 from torch import optim
@@ -14,6 +14,7 @@ from lib.misc import optimize
 import numpy as np
 import time
 from data.attribute_loader import Attributes
+from lib.misc import print_para
 
 # Recommended hyperparameters
 args = ModelConfig(margin=0.1, lr=2e-4, batch_size=64, eps=1e-8,
@@ -24,15 +25,23 @@ dict_field, _ = load_vocab()
 
 train_iter = DictionaryAttributesIter(dict_field, train_data, batch_size=args.batch_size)
 val_iter = DictionaryAttributesIter(dict_field, val_data, batch_size=args.batch_size*10,
-                                    shuffle=False)
-test_iter = DictionaryAttributesIter(dict_field, test_data, batch_size=args.batch_size,
-                                     shuffle=False)
+                                    shuffle=False, train=False)
+test_iter = DictionaryAttributesIter(dict_field, test_data, batch_size=args.batch_size*10,
+                                     shuffle=False, train=False)
 
 
 crit = AttributeLoss(train_data.domains, size_average=True)
 m = DictionaryModel(dict_field.vocab, output_size=crit.input_size)
 m.load_pretrained(args.ckpt)
-optimizer = optim.Adam(m.parameters(), lr=args.lr, eps=args.eps, betas=(args.beta1, args.beta2))
+
+for name, p in m.named_parameters():
+    if name.startswith('embed'):
+        p.requires_grad = False
+
+print(print_para(m))
+optimizer = optim.Adam([p for p in m.parameters() if p.requires_grad],
+                       lr=args.lr, eps=args.eps, betas=(args.beta1, args.beta2))
+
 
 # if len(args.ckpt) > 0 and os.path.exists(args.ckpt):
 #     print("loading checkpoint from {}".format(args.ckpt))

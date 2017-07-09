@@ -8,14 +8,14 @@ from text.torchtext.data import Field, Dataset, Example, BucketIterator
 import dill as pkl
 from data.attribute_loader import _load_attributes
 import random
-from lib.defn_iterator import DictionaryChallengeIter
+from torch.autograd import Variable
 
 
 class DictionaryChallengeDataset(Dataset):
     """ Dataset for the dictionary challenge, where the goal is to predict a word embedding
         from dictionary data"""
 
-    def __init__(self, examples):
+    def __init__(self, examples, is_train=True):
         """
         Initializes the list of fields, etc.
         :param examples: List of example tuples
@@ -24,6 +24,9 @@ class DictionaryChallengeDataset(Dataset):
 
         fields = [('label', label_field), ('text', text_field)]
         # examples = [Example.fromlist(line, fields) for line in examples]
+
+        self.embeds = Variable(label_field.vocab.vectors, volatile=not is_train)
+
         super(DictionaryChallengeDataset, self).__init__(examples, fields)
 
     @classmethod
@@ -37,8 +40,8 @@ class DictionaryChallengeDataset(Dataset):
         random.seed(123456)
         random.shuffle(examples)
 
-        val_data = cls(examples[:num_val])
-        train_data = cls(examples[num_val:])
+        val_data = cls(examples[:num_val], is_train=False)
+        train_data = cls(examples[num_val:], is_train=True)
         return train_data, val_data
 
 
@@ -98,6 +101,7 @@ def load_vocab(vocab_size=30000,
 
 
 if __name__ == '__main__':
+    from lib.bucket_iterator import DictionaryChallengeIter
     train, val = DictionaryChallengeDataset.splits()
-    train_iter = DictionaryChallengeIter(train, batch_size=32, sort_key=lambda x: -len(x[1]))
+    train_iter = DictionaryChallengeIter(train, batch_size=32)
     blah = next(iter(train_iter))
