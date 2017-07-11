@@ -15,22 +15,16 @@ import time
 from torch.nn.utils.rnn import pad_packed_sequence
 
 # Recommended hyperparameters
-args = ModelConfig(margin=0.1, lr=2e-4, batch_size=64, eps=1e-8, save_dir='def2atts_pretrain',
-                   ckpt='def2atts_pretrain/ckpt_50.tar')
+args = ModelConfig(margin=0.1, lr=1e-4, batch_size=64, eps=1e-8,
+                   save_dir='def2atts_pretrain', dropout=0.2)
 
 train_data, val_data = DictionaryChallengeDataset.splits()
 train_iter = DictionaryChallengeIter(train_data, batch_size=args.batch_size)
-val_iter = DictionaryChallengeIter(val_data, batch_size=args.batch_size*10, sort=False)
-
+val_iter = DictionaryChallengeIter(val_data, batch_size=args.batch_size * 10, sort=False,
+                                   shuffle=False)
 
 m = DictionaryModel(train_data.fields['text'].vocab, 300)
 optimizer = optim.Adam(m.parameters(), lr=args.lr, eps=args.eps, betas=(args.beta1, args.beta2))
-
-# if len(args.ckpt) > 0 and os.path.exists(args.ckpt):
-#     print("loading checkpoint from {}".format(args.ckpt))
-#     ckpt = torch.load(args.ckpt)
-#     m.load_state_dict(ckpt['m_state_dict'])
-#     optimizer.load_state_dict(ckpt['optimizer'])
 
 crit = CosineRankingLoss(size_average=True, margin=args.margin)
 
@@ -58,19 +52,20 @@ def deploy(word_inds, defns):
     return cost, correct_contrib, rank, ranking
 
 
-def log_val(word_inds, defns, cost,  rank, ranking, num_ex=10):
-    print("mean rank {:.1f}------------------------------------------".format(
-        np.mean(rank)))
+def log_val(word_inds, defns, cost, rank, ranking, num_ex=10):
+    print("mean rank {:.1f}------------------------------------------".format(np.mean(rank)))
 
     engl_defns, ls = pad_packed_sequence(defns, batch_first=True)
-    engl_defns = [' '.join([val_data.fields['text'].vocab.itos[x] for x in d[1:(l-1)]])
-                  for d, l in zip(engl_defns.cpu().data.numpy(), ls)]
+    spacing = np.linspace(len(ls) // num_ex, len(ls), endpoint=False, num=num_ex, dtype=np.int64)
+
+    engl_defns = [' '.join([val_data.fields['text'].vocab.itos[x] for x in d[1:(l - 1)]])
+                  for d, l in zip(engl_defns.cpu().data.numpy()[spacing], [ls[s] for s in spacing])]
     top_scorers = [[val_data.fields['label'].vocab.itos[x] for x in t]
-                   for t in ranking[:, :3]]
-    words = [val_data.fields['label'].vocab.itos[wi] for wi in word_inds.cpu().numpy()]
+                   for t in ranking[spacing, :3]]
+    words = [val_data.fields['label'].vocab.itos[wi] for wi in word_inds.cpu().numpy()[spacing]]
 
     for w, (word, rank_, top3, l, defn) in enumerate(
-            zip(words[:num_ex], rank, top_scorers, cost, engl_defns)):
+            zip(words, rank, top_scorers, cost, engl_defns)):
         print("w{:2d}/{:2d}, R{:5d} {:>30} ({:.3f}){:>13}: {}".format(
             w, 64, rank_, ' '.join(top3), l, word, defn))
     print("------------------------------------------------------------")
@@ -78,7 +73,7 @@ def log_val(word_inds, defns, cost,  rank, ranking, num_ex=10):
 
 last_best_epoch = 1
 prev_best = 0.0
-for epoch in range(1, 51):
+for epoch in range(1, 101):
     val_l = []
     val_l_correct = []
     train_l = []
@@ -106,7 +101,6 @@ for epoch in range(1, 51):
         if last_best_epoch < (epoch - 3):
             print("Early stopping at epoch {}".format(epoch))
             break
-
     m.train()
     start_epoch = time.time()
     for b, (word_inds, defns) in enumerate(train_iter):
@@ -124,12 +118,12 @@ for epoch in range(1, 51):
             ), flush=True)
     dur_epoch = time.time() - start_epoch
     print("Duration of epoch was {:.3f}/batch, overall loss was {:.3f}".format(
-        dur_epoch/b,
+        dur_epoch / b,
         np.mean(train_l),
     ))
     torch.save({
-                'args': args.args,
-                'epoch': epoch,
-                'm_state_dict': m.state_dict(),
-                'optimizer': optimizer.state_dict(),
-            }, os.path.join(args.save_dir, 'ckpt_{}.tar'.format(epoch)))
+        'args': args.args,
+        'epoch': epoch,
+        'm_state_dict': m.state_dict(),
+        'optimizer': optimizer.state_dict(),
+    }, os.path.join(args.save_dir, 'ckpt_{}.tar'.format(epoch)))

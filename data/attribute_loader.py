@@ -12,7 +12,8 @@ import random
 import numpy as np
 import pandas as pd
 
-from config import ATTRIBUTES_PATH, ATTRIBUTES_SPLIT, IMSITU_VERBS, GLOVE, DEFNS_PATH
+from config import ATTRIBUTES_PATH, ATTRIBUTES_SPLIT, IMSITU_VERBS, GLOVE_PATH, GLOVE_TYPE, \
+    DEFNS_PATH
 import torch
 from text.torchtext.vocab import load_word_vectors
 from torch.autograd import Variable
@@ -120,7 +121,7 @@ def _load_defns(atts_df, is_test=False):
         if is_test:
             raise ValueError("Some verbs are missing: {}".format(missing_verbs))
         else:
-            print("Some verbs are missing: {}".format(missing_verbs))
+            print("Some verbs are missing definitions: {}".format(missing_verbs))
 
     joined_df = verb_defns.join(atts_df, 'template', how='inner')
     joined_df = joined_df.drop(['POS'], 1).set_index('template')
@@ -158,10 +159,6 @@ def _get_template_emb(template, wv_dict, wv_arr):
             raise ValueError("Error on {}".format(template))
         return (wv_arr[ind0] + wv_arr[ind1]) / 2.0
 
-    # This is in training set so should be OK
-    if template == 'cheerlead':
-        return (wv_arr[wv_dict['cheer']] + wv_arr[wv_dict['lead']]) / 2.0
-
     raise ValueError("Problem with {}".format(template))
 
 
@@ -171,7 +168,7 @@ def _load_vectors(words):
     :param words: 
     :return: 
     """
-    wv_dict, wv_arr, _ = load_word_vectors(GLOVE, 'glove.6B', 300)
+    wv_dict, wv_arr, _ = load_word_vectors(GLOVE_PATH, GLOVE_TYPE, 300)
     embeds = torch.Tensor(len(words), 300).zero_()
     for i, token in enumerate(words):
         embeds[i] = _get_template_emb(token, wv_dict, wv_arr)

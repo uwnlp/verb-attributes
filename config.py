@@ -33,8 +33,10 @@ IMSITU_VAL_LIST = imsitu_path('dev_set.txt')
 IMSITU_TEST_LIST = imsitu_path('test_set.txt')
 IMSITU_VERBS = path('imsitu_verbs.txt')
 
-GLOVE = path('glove.6B.300d')
-WORD2VEC = path('glove.6B.300d')
+GLOVE_PATH = path('glove.840B.300d')
+GLOVE_TYPE = 'glove.840B'
+WORD2VEC = None
+# WORD2VEC = path('glove.840B.300d')
 
 CHECKPOINT_PATH = os.path.join(ROOT_PATH, 'checkpoints')
 INIT_SCALE= 2e-5
@@ -43,7 +45,7 @@ INIT_SCALE= 2e-5
 class ModelConfig(object):
     """Wrapper class for model hyperparameters."""
     def __init__(self, margin=0.1, lr=1e-3, batch_size=64, eps=1e-8, beta1=0.9, beta2=0.999,
-                 ckpt='', save_dir='save'):
+                 ckpt='', dropout=0.2, save_dir='save'):
         """
         Defaults
         """
@@ -55,6 +57,7 @@ class ModelConfig(object):
         self.beta2 = beta2
         self.ckpt = ckpt
         self.save_dir = save_dir
+        self.dropout = dropout
 
         self.parser = self.setup_parser()
         self.args = vars(self.parser.parse_args())
@@ -88,5 +91,8 @@ class ModelConfig(object):
         parser.add_argument('-eps', dest='eps', help='Epsilon, for adam', type=float)
         parser.add_argument('-b', dest='batch_size', help='batch size', type=int)
         parser.add_argument('-beta1', dest='beta1', help='for adam', type=float,)
-        parser.add_argument('-beta2', dest='beta2', help='for adam. probably dont need to touch this', type=float)
+        parser.add_argument('-beta2', dest='beta2',
+                            help='for adam. probably dont need to touch this', type=float)
+        parser.add_argument('-dropout', dest='dropout', help='Rate of things that are dropped',
+                            type=float)
         return parser

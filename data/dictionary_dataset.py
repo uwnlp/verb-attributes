@@ -2,7 +2,7 @@
 This file contains methods for loading the dictionary challenge.
 """
 import spacy
-from config import CHECKPOINT_PATH, DICTIONARY_PATH, GLOVE
+from config import CHECKPOINT_PATH, DICTIONARY_PATH, GLOVE_PATH, GLOVE_TYPE
 import os
 from text.torchtext.data import Field, Dataset, Example, BucketIterator
 import dill as pkl
@@ -61,15 +61,19 @@ def load_vocab(vocab_size=30000,
         eos_token='<eos>',
         lower=True,
         include_lengths=True,
+        preprocessing=lambda x: [tok for tok in x if tok.isalpha()]
     )
     words_field = Field(sequential=False, include_lengths=False)
     if os.path.exists(vocab_path):
+        print("Loading the cached vocab from {}".format(vocab_path))
         with open(vocab_path, 'rb') as f:
             defns_vocab, words_vocab = pkl.load(f)
         defns_field.vocab = defns_vocab
         words_field.vocab = words_vocab
 
         return defns_field, words_field
+    print("Building the vocab. This might take a while...")
+
 
     def dict_gen(entries_dict=True):
         with open(DICTIONARY_PATH, 'rb') as f:
@@ -91,10 +95,10 @@ def load_vocab(vocab_size=30000,
     defns_field.build_vocab(dict_gen(entries_dict=True), max_size=vocab_size)
     words_field.build_vocab(dict_gen(entries_dict=False))
 
-    defns_field.vocab.load_vectors(wv_dir=GLOVE, wv_type='glove.6B')
-    words_field.vocab.load_vectors(wv_dir=GLOVE, wv_type='glove.6B')
+    defns_field.vocab.load_vectors(wv_dir=GLOVE_PATH, wv_type=GLOVE_TYPE)
+    words_field.vocab.load_vectors(wv_dir=GLOVE_PATH, wv_type=GLOVE_TYPE)
 
-    print("saving to {}".format(vocab_path))
+    print("Caching the vocab to {}".format(vocab_path), flush=True)
     with open(vocab_path, 'wb') as f:
         pkl.dump((defns_field.vocab, words_field.vocab), f)
     return defns_field, words_field
