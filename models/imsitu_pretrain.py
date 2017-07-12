@@ -50,7 +50,7 @@ def deploy(x, labels):
 
     top5_preds = bests[:, :5].cpu().data.numpy()
 
-    top1_acc = np.mean(rank==1)
+    top1_acc = np.mean(rank==0)
     top5_acc = np.mean(rank<5)
     return loss.data[0], top1_acc, top5_acc
 
