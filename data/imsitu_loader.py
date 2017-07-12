@@ -78,9 +78,10 @@ class ImSitu(torch.utils.data.Dataset):
             ['train', 'val', 'test'], 
             [self.use_train_images, self.use_val_images, self.use_test_images],
         ):
-            self.examples += [(fn, self.attributes.ind_perm[ind])
-                              for fn, ind in _load_imsitu_file(mode)
-                              if ind in self.attributes.ind_perm]
+            if to_use:
+                self.examples += [(fn, self.attributes.ind_perm[ind])
+                                  for fn, ind in _load_imsitu_file(mode)
+                                  if ind in self.attributes.ind_perm]
 
         self.transform = transform(is_train=not self.use_test_verbs)
 
@@ -90,14 +91,14 @@ class ImSitu(torch.utils.data.Dataset):
         return img, ind
 
     @classmethod
-    def splits(cls, zeroshot_transfer=False, **kwargs):
+    def splits(cls, zeroshot=False, **kwargs):
         """
         Gets splits
-        :param zeroshot_transfer: True if we're transferring to zeroshot classes
+        :param zeroshot: True if we're transferring to zeroshot classes
         :return: train, val, test datasets
         """
 
-        if zeroshot_transfer:
+        if zeroshot:
             train_cls = cls(use_train_verbs=True, use_train_images=True, use_val_images=True)
             val_cls = cls(use_val_verbs=True, use_train_images=True, use_val_images=True)
             test_cls = cls(use_test_verbs=True, use_test_images=True)
@@ -117,10 +118,13 @@ class CudaDataLoader(torch.utils.data.DataLoader):
     """
     Iterates through the data, but also loads everything as a (cuda) variable
     """
+    def __init__(self, *args, volatile=False, **kwargs):
+        super(CudaDataLoader, self).__init__(*args, **kwargs)
+        self.volatile = volatile
 
     def _load(self, item):
-        img = Variable(item[0])
-        label = Variable(item[1])
+        img = Variable(item[0], volatile=self.volatile)
+        label = Variable(item[1], volatile=self.volatile)
 
         if torch.cuda.is_available():
             img = img.cuda()
@@ -130,6 +134,47 @@ class CudaDataLoader(torch.utils.data.DataLoader):
 
     def __iter__(self):
         return (self._load(x) for x in super(CudaDataLoader, self).__iter__())
+
+    @classmethod
+    def splits(cls, train, val, test, batch_size, num_workers=0, **kwargs):
+        """
+        gets dataloaders given datasets
+        :param train: 
+        :param val: 
+        :param test: 
+        :param batch_size: 
+        :param num_workers: 
+        :return: 
+        """
+
+        train_dl = cls(
+            dataset=train,
+            batch_size=batch_size,
+            shuffle=True,
+            num_workers=num_workers,
+            collate_fn=collate_fn,
+            **kwargs,
+        )
+        val_dl = cls(
+            dataset=val,
+            batch_size=batch_size*16,
+            shuffle=False,
+            num_workers=num_workers,
+            collate_fn=collate_fn,
+            volatile=True,
+            **kwargs,
+        )
+        test_dl = cls(
+            dataset=test,
+            batch_size=batch_size*16,
+            shuffle=False,
+            num_workers=num_workers,
+            collate_fn=collate_fn,
+            volatile=True,
+            **kwargs,
+        )
+        return train_dl, val_dl, test_dl
+
 
 
 def transform(is_train=True, normalize=True):
