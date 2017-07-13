@@ -9,7 +9,7 @@ from lib.att_prediction import DictionaryModel
 from torch import optim
 import os
 import torch
-from lib.misc import CosineRankingLoss, optimize, cosine_ranking_loss, get_ranking
+from lib.misc import CosineRankingLoss, optimize, cosine_ranking_loss, get_cosine_ranking
 import numpy as np
 import time
 from torch.nn.utils.rnn import pad_packed_sequence
@@ -48,7 +48,7 @@ def deploy(word_inds, defns):
                                                              margin=args.margin)
     cost = cost.data.cpu().numpy()
     correct_contrib = correct_contrib.data.cpu().numpy()
-    rank, ranking = get_ranking(pred_embs, val_data.embeds, word_inds)
+    rank, ranking = get_cosine_ranking(pred_embs, val_data.embeds, word_inds)
     return cost, correct_contrib, rank, ranking
 
 

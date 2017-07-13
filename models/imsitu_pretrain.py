@@ -91,10 +91,9 @@ for epoch in range(1, 50):
                 (time.time() - start_epoch) / (b+1),
             ), flush=True)
     print("overall loss was {:.3f}".format(np.mean(train_l)))
-
-torch.save({
-    'args': args.args,
-    'epoch': epoch,
-    'm_state_dict': m.state_dict(),
-    'optimizer': optimizer.state_dict(),
-}, os.path.join(args.save_dir, 'ckpt_{}.tar'.format(epoch)))
+    torch.save({
+        'args': args.args,
+        'epoch': epoch,
+        'm_state_dict': m.state_dict(),
+        'optimizer': optimizer.state_dict(),
+    }, os.path.join(args.save_dir, 'ckpt_{}.tar'.format(epoch)))

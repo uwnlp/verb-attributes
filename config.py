@@ -45,7 +45,8 @@ INIT_SCALE= 2e-5
 class ModelConfig(object):
     """Wrapper class for model hyperparameters."""
     def __init__(self, margin=0.1, lr=1e-3, batch_size=64, eps=1e-8, beta1=0.9, beta2=0.999,
-                 ckpt='', dropout=0.2, save_dir='save'):
+                 ckpt='', dropout=0.2, save_dir='save', imsitu_model='ours',
+                 use_att=False, use_emb=False):
         """
         Defaults
         """
@@ -58,6 +59,10 @@ class ModelConfig(object):
         self.ckpt = ckpt
         self.save_dir = save_dir
         self.dropout = dropout
+        self.imsitu_model = imsitu_model
+        self.use_emb = use_emb
+        self.use_att = use_att
+        assert imsitu_model in ('iap', 'dap', 'ours', 'devise')
 
         self.parser = self.setup_parser()
         self.args = vars(self.parser.parse_args())
@@ -95,4 +100,13 @@ class ModelConfig(object):
                             help='for adam. probably dont need to touch this', type=float)
         parser.add_argument('-dropout', dest='dropout', help='Rate of things that are dropped',
                             type=float)
+        parser.add_argument('-imsitu_model', dest='imsitu_model',
+                            help='imsitu model to use: {iap, dap, ours, devise}',
+                            type=str)
+        parser.add_argument('-use_emb', dest='use_emb',
+                            help='If well use embeddings for zeroshot',
+                            default=None, action='store_true')
+        parser.add_argument('-use_att', dest='use_att',
+                            help='If well use attributes for zeroshot',
+                            default=None, action='store_true')
         return parser
