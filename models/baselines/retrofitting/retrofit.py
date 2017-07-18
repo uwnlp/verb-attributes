@@ -12,11 +12,11 @@ import sys
 import pandas as pd
 
 from copy import deepcopy
-from gensim.models import KeyedVectors
-
-WORD2VEC_PATH = '/home/rowan/code/video-attributes/data/GoogleNews-vectors-negative300.bin.gz'
+from text.torchtext.vocab import load_word_vectors
+from data.attribute_loader import _load_attributes
+from config import GLOVE_PATH, GLOVE_TYPE
 from unidecode import unidecode
-
+import pickle as pkl
 isNumber = re.compile(r'\d+.*')
 
 
@@ -37,33 +37,34 @@ def normalize(x):
 
 
 def read_word_vecs():
-    model = KeyedVectors.load_word2vec_format(WORD2VEC_PATH, binary=True)
-    wordVectors = {unidecode(w): normalize(model[w]) for w in model.vocab}
-    sys.stderr.write("Vectors read from: " + WORD2VEC_PATH + " \n")
+    wv_dict, wv_arr, _ = load_word_vectors(GLOVE_PATH, GLOVE_TYPE, 300)
+    wv_arr = wv_arr.numpy()
+    wordVectors = {unidecode(w):normalize(wv_arr[ind]) for w,ind in wv_dict.items()}
+    sys.stderr.write("Vectors read from: " + GLOVE_PATH + " \n")
     return wordVectors
 
 
 ''' Write word vectors to file '''
-
-
 def print_word_vecs(wordVectors, outFileName):
     sys.stderr.write('\nWriting down the vectors in ' + outFileName + '\n')
-    outFile = open(outFileName, 'w')
+    # outFile = open(outFileName, 'w')
 
-    verbs = pd.read_csv('/home/rowan/code/video-attributes/data/attributes.csv')['verb'].unique()
+    verbs = _load_attributes(imsitu_only=False)['template'].unique()
+    vecs = {}
     for word in verbs:
-        outFile.write(word + ' ')
-        if word not in wordVectors:
-            wordVectors[word] = normalize(numpy.random.randn(300))
-        for val in wordVectors[word]:
-            outFile.write('%.4f' % (val) + ' ')
-        outFile.write('\n')
-    outFile.close()
+        if word in wordVectors:
+            vecs[word] = wordVectors[word]
+        elif len(word.split(' ')) > 1:
+            t0, t1 = word.split(' ')
+            vecs[word] = (wordVectors[t0] + wordVectors[t1])/2.0
+        elif word.startswith('un'):
+            vecs[word] = (wordVectors['un'] + wordVectors[word[2:]])/2.0
+
+    with open(outFileName,'wb') as f:
+        pkl.dump(vecs, f)
 
 
 ''' Read the PPDB word relations as a dictionary '''
-
-
 def read_lexicon(filename, wordVecs):
     lexicon = {}
     for line in open(filename, 'r'):
@@ -73,8 +74,6 @@ def read_lexicon(filename, wordVecs):
 
 
 ''' Retrofit word vectors to a lexicon '''
-
-
 def retrofit(wordVecs, lexicon, numIters):
     newWordVecs = deepcopy(wordVecs)
     wvVocab = set(newWordVecs.keys())

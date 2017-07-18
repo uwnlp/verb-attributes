@@ -18,11 +18,8 @@ from tqdm import tqdm
 from lib.attribute_loss import AttributeLoss
 
 # Recommended hyperparameters
-args = ModelConfig(lr=5e-5, batch_size=32, eps=1e-8, save_dir='imsitu_trainDEVISE',
-                   imsitu_model='ours', use_att=True, use_emb=True)
-
-args.imsitu_model = 'devise'
-args.use_att = False
+args = ModelConfig(lr=2e-5, batch_size=32, eps=1e-8, save_dir='imsitu_trainOURS',
+                   imsitu_model='ours', l2_weight=1e-3)
 
 train_data, val_data, test_data = ImSitu.splits(zeroshot=True)
 
@@ -34,22 +31,37 @@ m = ImsituModel(
     zeroshot=True,
     embed_dim=300 if args.use_emb else None,
     att_domains=att_crit.domains_per_att if args.use_att else None,
+    l2_weight=args.l2_weight,
 )
 m.load_pretrained(
-    '/home/rowan/code/verb-attributes/checkpoints/imsitu_pretrain/pretrained_ckpt.tar')
-optimizer = optim.Adam(m.parameters(), lr=args.lr, eps=args.eps, betas=(args.beta1, args.beta2))
+    '/home/rowan/code/verb-attributes/checkpoints/imsitu_pretrain/pretrained_ckpt.tar'
+)
 
+for n, p in m.resnet152.named_parameters():
+    if not n.startswith('layer4'):
+        p.requires_grad = False
+
+optimizer = optim.Adam([
+    {'params': [p for p in m.resnet152.parameters() if p.requires_grad], 'lr': args.lr / 10},
+    {'params': [p for n, p in m.named_parameters() if n.startswith(('embed_linear', 'att_linear'))]}
+],
+    lr=args.lr, eps=args.eps, betas=(args.beta1, args.beta2))
 
 # Call the function
 train_fn = locals()[args.imsitu_model + '_train']
 deploy_fn = locals()[args.imsitu_model + '_deploy']
-
 train_update = lambda ib, lb: train_fn(
     m, ib, lb, data=train_data, att_crit=att_crit, optimizers=[optimizer])
-val_update = lambda ib, lb: deploy_fn(
-    m, ib, lb, data=val_data, att_crit=att_crit)
-test_update = lambda ib, lb: deploy_fn(
-    m, ib, lb, data=test_data, att_crit=att_crit)
+
+
+def val_update(ib, lb):
+    probs = deploy_fn(m, ib, lb, data=val_data, att_crit=att_crit)
+    ranks, guesses = get_ranking(probs, lb.data)
+    ranks_np = ranks.cpu().numpy()
+    top1_acc = np.mean(ranks_np == 0)
+    top5_acc = np.mean(ranks_np < 5)
+    return pd.Series(data=[top1_acc, top5_acc], index=['top1_acc', 'top5_acc'])
+
 
 if torch.cuda.is_available():
     m.cuda()
@@ -58,9 +70,9 @@ if torch.cuda.is_available():
     val_data.attributes.cuda()
     test_data.attributes.cuda()
 
-last_best_epoch = 1
+last_best_epoch = 0
 prev_best = 0.0
-for epoch in range(1, 50):
+for epoch in range(50):
     train_l = []
     val_info = []
     m.eval()
@@ -74,11 +86,15 @@ for epoch in range(1, 50):
         (time.time() - start_epoch) / (len(val_iter) * val_iter.batch_size / train_iter.batch_size),
         val_info), flush=True)
 
-    assert epoch < 10
-
     if val_info['top5_acc'] > prev_best:
         prev_best = val_info['top5_acc']
         last_best_epoch = epoch
+        torch.save({
+            'args': args.args,
+            'epoch': epoch,
+            'm_state_dict': m.state_dict(),
+            'optimizer': optimizer.state_dict(),
+        }, os.path.join(args.save_dir, 'ckpt_{}.tar'.format(epoch)))
     else:
         if last_best_epoch < (epoch - 2):
             print("Early stopping at epoch {}".format(epoch))
@@ -91,18 +107,7 @@ for epoch in range(1, 50):
         if b % 100 == 0 and b >= 100:
             print("e{:2d}b{:5d} Cost {:.3f} , {:.3f} s/batch".format(
                 epoch, b,
-                np.mean(train_l),
+                np.mean(train_l[-100:]),
                 (time.time() - start_epoch) / (b + 1),
             ), flush=True)
     print("overall loss was {:.3f}".format(np.mean(train_l)))
-    torch.save({
-        'args': args.args,
-        'epoch': epoch,
-        'm_state_dict': m.state_dict(),
-        'optimizer': optimizer.state_dict(),
-    }, os.path.join(args.save_dir, 'ckpt_{}.tar'.format(epoch)))
-
-# test_info = []
-# for img_batch, label_batch in test_iter:
-#     test_info.append(val_update(img_batch, label_batch))
-# test_info = pd.DataFrame(test_info).mean()

@@ -10,7 +10,7 @@ import spacy
 import torch
 import os
 from config import IMSITU_TRAIN_LIST, IMSITU_VAL_LIST, IMSITU_TEST_LIST, IMSITU_IMGS
-from torchvision.transforms import Scale, RandomCrop, CenterCrop, ToTensor, Normalize, Compose
+from torchvision.transforms import Scale, RandomCrop, CenterCrop, ToTensor, Normalize, Compose, RandomHorizontalFlip
 from PIL import Image
 from data.attribute_loader import Attributes
 from collections import namedtuple
@@ -106,6 +106,7 @@ class ImSitu(torch.utils.data.Dataset):
             train_cls = cls(use_train_verbs=True, use_train_images=True)
             val_cls = cls(use_train_verbs=True, use_val_images=True)
             test_cls = cls(use_train_verbs=True, use_test_images=True)
+
         return train_cls, val_cls, test_cls
 
     def __len__(self):
@@ -189,8 +190,10 @@ def transform(is_train=True, normalize=True):
     else:
         filters.append(CenterCrop(224))
 
-    filters.append(ToTensor())
+    if is_train:
+        filters.append(RandomHorizontalFlip())
 
+    filters.append(ToTensor())
     if normalize:
         filters.append(Normalize(mean=[0.485, 0.456, 0.406],
                                  std=[0.229, 0.224, 0.225]))

@@ -45,7 +45,7 @@ INIT_SCALE= 2e-5
 class ModelConfig(object):
     """Wrapper class for model hyperparameters."""
     def __init__(self, margin=0.1, lr=1e-3, batch_size=64, eps=1e-8, beta1=0.9, beta2=0.999,
-                 ckpt='', dropout=0.2, save_dir='save', imsitu_model='ours',
+                 ckpt='', dropout=0.2, save_dir='save', imsitu_model='ours', l2_weight=1e-3,
                  use_att=False, use_emb=False):
         """
         Defaults
@@ -62,6 +62,7 @@ class ModelConfig(object):
         self.imsitu_model = imsitu_model
         self.use_emb = use_emb
         self.use_att = use_att
+        self.l2_weight=l2_weight
         assert imsitu_model in ('iap', 'dap', 'ours', 'devise')
 
         self.parser = self.setup_parser()
@@ -99,6 +100,8 @@ class ModelConfig(object):
         parser.add_argument('-beta2', dest='beta2',
                             help='for adam. probably dont need to touch this', type=float)
         parser.add_argument('-dropout', dest='dropout', help='Rate of things that are dropped',
+                            type=float)
+        parser.add_argument('-l2_weight', dest='l2_weight', help='l2 regularization weight',
                             type=float)
         parser.add_argument('-imsitu_model', dest='imsitu_model',
                             help='imsitu model to use: {iap, dap, ours, devise}',

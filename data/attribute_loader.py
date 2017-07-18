@@ -187,7 +187,7 @@ class Attributes(object):
                                                         (use_train, use_val, use_test)) if use_a])
         self.use_defns = use_defns
         if self.use_defns:
-            self.atts_df = _load_defns(self.atts_df, is_test=use_test)
+            self.atts_df = _load_defns(self.atts_df, is_test=use_val or use_test)
 
         # perm is a permutation from the normal index to the new one.
         # This can be used for getting the attributes for Imsitu
@@ -200,12 +200,17 @@ class Attributes(object):
         self.embeds = Variable(_load_vectors(self.atts_df.index.values),
                                volatile=not use_train)
 
+        self.counts = self.atts_df.groupby('template').defn.nunique()
+        _m = self.counts.mean()
+        self.name_to_weight = {x: y/_m for x,y in self.counts.items()}
+
     def __len__(self):
         return self.atts_df.shape[0]
 
     def __getitem__(self, index):
         if self.use_defns:
-            return self.atts_matrix[index], self.embeds[index], self.atts_df['defn'].iloc[index]
+            return self.atts_matrix[index], self.embeds[index], self.atts_df.defn.iloc[index], \
+                   self.name_to_weight[self.atts_df.index[index]]
         return self.atts_matrix[index], self.embeds[index]
 
     def cuda(self, device_id=None):
