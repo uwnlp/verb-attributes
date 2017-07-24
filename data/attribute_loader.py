@@ -47,7 +47,7 @@ def _load_imsitu_verbs():
         for v in f.read().splitlines():
             imsitu_verbs.append(v)
     assert len(imsitu_verbs) == 504
-    assert imsitu_verbs == sorted(imsitu_verbs)
+    # assert imsitu_verbs == sorted(imsitu_verbs)
     return imsitu_verbs
 
 
@@ -63,8 +63,15 @@ def _load_attributes(imsitu_only=False):
     if imsitu_only:
         imsitu_part = merged_df[merged_df['in_imsitu'] & ~merged_df['template'].str.contains(' ')]
         merged_df = imsitu_part.reset_index(drop=True)
-        assert len(merged_df.index) == 504
 
+        # permute with imsitu verbs
+        imsitu_verbs = _load_imsitu_verbs()
+        for v in imsitu_verbs:
+            if v not in list(merged_df.template):
+                print("NO {}".format(v))
+        merged_df = pd.DataFrame([
+            merged_df.iloc[merged_df[merged_df.template == v].index[0]].T for v in imsitu_verbs
+        ])
     # Remove the in_imsitu and verb information (only templates are relevant)
     merged_df = merged_df.drop(['in_imsitu', 'verb'], 1)
     return merged_df
@@ -177,7 +184,7 @@ def _load_vectors(words):
 
 class Attributes(object):
     def __init__(self, use_train=False, use_val=False, use_test=False, imsitu_only=False,
-                 use_defns=False):
+                 use_defns=False, first_defn_at_test=True):
         """
         Use this class to represent a chunk of attributes for each of the test labels. 
         This is needed because at test time we'll need to compare against all of the attributes
@@ -187,7 +194,8 @@ class Attributes(object):
                                                         (use_train, use_val, use_test)) if use_a])
         self.use_defns = use_defns
         if self.use_defns:
-            self.atts_df = _load_defns(self.atts_df, is_test=use_val or use_test)
+            self.atts_df = _load_defns(self.atts_df,
+                                       is_test=(use_val or use_test) and first_defn_at_test)
 
         # perm is a permutation from the normal index to the new one.
         # This can be used for getting the attributes for Imsitu
@@ -200,17 +208,25 @@ class Attributes(object):
         self.embeds = Variable(_load_vectors(self.atts_df.index.values),
                                volatile=not use_train)
 
-        self.counts = self.atts_df.groupby('template').defn.nunique()
-        _m = self.counts.mean()
-        self.name_to_weight = {x: y/_m for x,y in self.counts.items()}
+    @property
+    def _balanced_inds(self):
+        # Returns the inds that balance the dataset
+        counts = self.atts_df.groupby('template').defn.nunique()
+        max_count = max(counts)
+        all_inds = []
+        for template, inds in self.atts_df.groupby('template').indices.items():
+            all_inds.append(inds)
+            all_inds.append(np.random.choice(inds, size=max_count-len(inds)))
+        all_inds = np.concatenate(all_inds, 0)
+        np.random.shuffle(all_inds)
+        return all_inds
 
     def __len__(self):
         return self.atts_df.shape[0]
 
     def __getitem__(self, index):
         if self.use_defns:
-            return self.atts_matrix[index], self.embeds[index], self.atts_df.defn.iloc[index], \
-                   self.name_to_weight[self.atts_df.index[index]]
+            return self.atts_matrix[index], self.embeds[index], self.atts_df.defn.iloc[index]
         return self.atts_matrix[index], self.embeds[index]
 
     def cuda(self, device_id=None):
@@ -218,10 +234,10 @@ class Attributes(object):
         self.embeds = self.embeds.cuda(device_id)
 
     @classmethod
-    def splits(cls, use_defns=False,cuda=True):
-        train = cls(use_train=True, use_val=False, use_test=False, use_defns=use_defns)
-        val = cls(use_train=False, use_val=True, use_test=False, use_defns=use_defns)
-        test = cls(use_train=False, use_val=False, use_test=True, use_defns=use_defns)
+    def splits(cls, cuda=True, **kwargs):
+        train = cls(use_train=True, use_val=False, use_test=False, **kwargs)
+        val = cls(use_train=False, use_val=True, use_test=False, **kwargs)
+        test = cls(use_train=False, use_val=False, use_test=True, **kwargs)
 
         if cuda:
             train.cuda()

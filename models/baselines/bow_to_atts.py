@@ -9,10 +9,8 @@ from data.attribute_loader import Attributes
 import numpy as np
 import pandas as pd
 from collections import defaultdict
-
+import pickle as pkl
 VOCAB_SIZE = 5000
-
-train_data, val_data, test_data = Attributes.splits(use_defns=True, cuda=False)
 dict_field, _ = load_vocab()
 
 def bowize(text_defn, emb=None):
@@ -43,25 +41,59 @@ def nbowize(text_defn, emb=None):
     return nbow
 
 def get_x(data, enc_fn, use_emb=False):
+    embeds_to_use = data.embeds.data.numpy()
+    defns_to_use = list(data.atts_df['defn'])
+    atts_to_use = data.atts_matrix.data.numpy()
+
     if use_emb:
-        return np.stack([enc_fn(d,e) for d, e in zip(list(data.atts_df['defn']),
-                                                 data.embeds.data.numpy())])
+        return np.stack([enc_fn(d,e) for d, e in zip(defns_to_use, embeds_to_use)]), atts_to_use
     else:
-        return np.stack([enc_fn(d) for d in list(data.atts_df['defn'])])
+        return np.stack([enc_fn(d) for d in defns_to_use]), atts_to_use
 
-def defn_to_atts(defn_type, use_emb=False):
+def get_stacked_x(data, enc_fn, use_emb=False):
+    embeds = data.embeds.data.numpy()
+    atts = data.atts_matrix.data.numpy()
+    embeds_to_use = []
+    defns_to_use = []
+    atts_to_use = []
+    i = 0
+    for _, df in data.atts_df.groupby('template'):
+        embeds_to_use.append(embeds[i])
+        atts_to_use.append(atts[i])
+        i += df.shape[0]
+        defns_to_use.append(' '.join(df))
+    embeds_to_use = np.stack(embeds_to_use)
+    atts_to_use = np.stack(atts_to_use)
 
-    enc_fn = {'bow':bowize, 'nbow':nbowize}[defn_type]
-    X_train = get_x(train_data, enc_fn, use_emb=use_emb)
-    X_val = get_x(val_data, enc_fn, use_emb=use_emb)
-    X_test = get_x(test_data, enc_fn, use_emb=use_emb)
+    if use_emb:
+        return np.stack([enc_fn(d,e) for d, e in zip(defns_to_use, embeds_to_use)]), atts_to_use
+    else:
+        return np.stack([enc_fn(d) for d in defns_to_use]), atts_to_use
 
-    Y_train = train_data.atts_matrix.data.numpy()
-    Y_val = val_data.atts_matrix.data.numpy()
-    Y_test = test_data.atts_matrix.data.numpy()
+
+def defn_to_atts(defn_type, use_emb=False, first_defn=True):
+
+    train_data, val_data, test_data = Attributes.splits(use_defns=True, cuda=False,
+                                                        first_defn_at_test=first_defn)
+    enc_fn = {'bow': bowize, 'nbow': nbowize}[defn_type]
+    if first_defn:
+        # We want to oversample
+        balanced_train_inds = train_data._balanced_inds
+
+        X_train, Y_train = get_x(train_data, enc_fn, use_emb=use_emb)
+        X_train = X_train[balanced_train_inds]
+        Y_train = Y_train[balanced_train_inds]
+        X_val, Y_val = get_x(val_data, enc_fn, use_emb=use_emb)
+        X_test, Y_test = get_x(test_data, enc_fn, use_emb=use_emb)
+
+    else:
+        # We want to undersample
+        X_train, Y_train = get_stacked_x(train_data, enc_fn, use_emb=use_emb)
+        X_val, Y_val = get_stacked_x(val_data, enc_fn, use_emb=use_emb)
+        X_test, Y_test = get_stacked_x(test_data, enc_fn, use_emb=use_emb)
 
     # cross validate
-    cs = np.power(10., [-3,-2,-1,0,1])
+    cs = np.power(10., [-3,-2,-1,0])
     accs = defaultdict(list)
     for c in cs:
         for d, (dom_name, dom_size) in enumerate(train_data.domains):
@@ -91,7 +123,10 @@ def defn_to_atts(defn_type, use_emb=False):
     preds_full = np.array(preds).T
     acc_table = evaluate_accuracy(preds_full, Y_test)
 
-    acc_table.index = ['{}{}'.format(defn_type, '+ GloVe' if use_emb else '')]
+    acc_table.index = ['{}{}({})'.format(defn_type, ' +GloVe' if use_emb else '',
+                                         'firstdefn' if first_defn else 'concat')]
+
+    np.save('{}{}.pkl'.format(defn_type, ' +GloVe' if use_emb else ''), preds_full)
     return acc_table
 
 if __name__ == '__main__':

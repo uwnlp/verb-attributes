@@ -1,5 +1,5 @@
 """
-Script to pretrain the LSTM -> linear model for definition to attributes
+Script to pretrain the BGRU -> linear model for definition to attributes
 """
 
 from data.dictionary_dataset import load_vocab
@@ -18,9 +18,8 @@ from lib.misc import print_para
 import pandas as pd
 
 # Recommended hyperparameters
-args = ModelConfig(margin=0.1, lr=1e-4, batch_size=16, eps=0.1, l2_weight=0.001, dropout=0.5,
+args = ModelConfig(lr=1e-4, batch_size=32, eps=1.0, l2_weight=1e-2, dropout=0.5,
                    ckpt='def2atts_pretrain/ckpt_28.tar', save_dir='def2atts_train')
-args.use_emb = True
 
 train_data, val_data, test_data = Attributes.splits(use_defns=True, cuda=True)
 dict_field, _ = load_vocab()
@@ -44,21 +43,15 @@ print(print_para(m))
 optimizer = optim.Adam([p for p in m.parameters() if p.requires_grad],
                        lr=args.lr, eps=args.eps, betas=(args.beta1, args.beta2))
 
-# if len(args.ckpt) > 0 and os.path.exists(args.ckpt):
-#     print("loading checkpoint from {}".format(args.ckpt))
-#     ckpt = torch.load(args.ckpt)
-#     m.load_state_dict(ckpt['state_dict'])
-#     optimizer.load_state_dict(ckpt['optimizer'])
-
 if torch.cuda.is_available():
     m.cuda()
     crit.cuda()
 
 
 @optimize
-def train_batch(atts, words, defns, weights, optimizers=None):
+def train_batch(atts, words, defns, optimizers=None):
     logits = m(defns, words)
-    loss = torch.mean(crit(logits, atts, weights=weights))
+    loss = torch.sum(crit(logits, atts))
 
     for name, p in m.named_parameters():
         if name.startswith('fc.weight'):
@@ -66,9 +59,9 @@ def train_batch(atts, words, defns, weights, optimizers=None):
     return loss
 
 
-def val_batch(atts, words, defns, weights):
+def val_batch(atts, words, defns):
     logits = m(defns, words)
-    val_loss = torch.mean(crit(logits, atts))
+    val_loss = torch.sum(crit(logits, atts))
     preds = crit.predict(logits)
     acc_table = evaluate_accuracy(preds, atts.cpu().data.numpy())
     acc_table['loss'] = val_loss.cpu().data.numpy()[None,:]
@@ -81,8 +74,8 @@ for epoch in range(50):
     train_l = []
 
     m.eval()
-    for b, (atts, words, defns, weights) in enumerate(val_iter):
-        val_info.append(val_batch(atts, words, defns, weights))
+    for b, (atts, words, defns, _) in enumerate(val_iter):
+        val_info.append(val_batch(atts, words, defns))
 
     val_info = pd.DataFrame(val_info).mean()
     print("--- \n E{:2d} (VAL) \n {} \n --- \n".format(
@@ -100,15 +93,15 @@ for epoch in range(50):
             'optimizer': optimizer.state_dict(),
         }, os.path.join(args.save_dir, 'ckpt_{}.tar'.format(epoch)))
     else:
-        if last_best_epoch < (epoch - 5):
+        if last_best_epoch < (epoch - 4):
             print("Early stopping at epoch {}".format(epoch))
             break
 
     m.train()
     start_epoch = time.time()
-    for b, (atts, words, defns, weights) in enumerate(train_iter):
+    for b, (atts, words, defns, _) in enumerate(train_iter):
         start = time.time()
-        train_l.append(train_batch(atts, words, defns, weights, optimizers=[optimizer]))
+        train_l.append(train_batch(atts, words, defns, optimizers=[optimizer]))
 
         dur = time.time() - start
         if b % 100 == 0 and b >= 100:

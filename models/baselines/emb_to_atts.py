@@ -68,9 +68,11 @@ def emb_to_atts(emb_type):
     preds_full = np.array(preds).T
     accs = evaluate_accuracy(preds_full, Y_test)
     accs.index = [emb_type]
-    return accs
+    return accs, preds_full
 
 if __name__ == '__main__':
-    results = pd.concat([emb_to_atts(t) for t in TYPES], axis=0)
-    results.to_csv('emb.csv', float_format='%.2f')
+    #results = pd.concat([emb_to_atts(t)[0] for t in TYPES], axis=0)
+    #results.to_csv('emb.csv', float_format='%.2f')
 
+    attpreds = emb_to_atts('glove')[1]
+    np.save('att_preds_embed', attpreds)

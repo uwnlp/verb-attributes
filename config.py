@@ -31,7 +31,7 @@ IMSITU_IMGS = imsitu_path('of500_images')
 IMSITU_TRAIN_LIST = imsitu_path('train_set.txt')
 IMSITU_VAL_LIST = imsitu_path('dev_set.txt')
 IMSITU_TEST_LIST = imsitu_path('test_set.txt')
-IMSITU_VERBS = path('imsitu_verbs.txt')
+IMSITU_VERBS = vwa_path('imsitu_verbs.txt')
 
 GLOVE_PATH = path('glove.840B.300d')
 GLOVE_TYPE = 'glove.840B'

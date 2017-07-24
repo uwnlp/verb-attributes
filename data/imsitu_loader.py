@@ -177,7 +177,6 @@ class CudaDataLoader(torch.utils.data.DataLoader):
         return train_dl, val_dl, test_dl
 
 
-
 def transform(is_train=True, normalize=True):
     """
     Returns a transform object

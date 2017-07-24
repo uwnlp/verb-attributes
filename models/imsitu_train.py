@@ -96,7 +96,7 @@ for epoch in range(50):
             'optimizer': optimizer.state_dict(),
         }, os.path.join(args.save_dir, 'ckpt_{}.tar'.format(epoch)))
     else:
-        if last_best_epoch < (epoch - 2):
+        if last_best_epoch < (epoch - 1):
             print("Early stopping at epoch {}".format(epoch))
             break
     m.train()
