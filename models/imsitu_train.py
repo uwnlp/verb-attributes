@@ -18,8 +18,8 @@ from tqdm import tqdm
 from lib.attribute_loss import AttributeLoss
 
 # Recommended hyperparameters
-args = ModelConfig(lr=2e-5, batch_size=32, eps=1e-8, save_dir='imsitu_trainOURS',
-                   imsitu_model='ours', l2_weight=1e-3)
+args = ModelConfig(lr=1e-5, batch_size=32, eps=1e-1, save_dir='imsitu_trainOURS',
+                   imsitu_model='ours', l2_weight=1e-4)
 
 train_data, val_data, test_data = ImSitu.splits(zeroshot=True)
 
