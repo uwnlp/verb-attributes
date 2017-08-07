@@ -4,7 +4,7 @@ This repository contains data and code for the EMNLP 2017 paper [Zero-Shot Activ
 ### Bibtex
 
 ```
-@inproceedings{emnlp17_znjjnrs,
+@inproceedings{emnlp17_zellers,
 author = {Rowan Zellers and Yejin Choi},
 title = {Zero-Shot Activity Recognition with Verb Attribute Induction},
 url = {https://arxiv.org/abs/1707.09468},
