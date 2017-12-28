@@ -216,11 +216,10 @@ def dap_deploy(m, x, labels, data, att_crit=None):
 
     #[batch_size x num labels x num attributes]
     probs_by_att = torch.stack(att_probs, 2)
-
     # [batch_size, range size]
-    probs_prod = torch.prod(probs_by_att + 1e-12, 2).squeeze(2)
-    denom = probs_prod.sum(1)  # [batch_size, 1]
-    probs = probs_prod / denom.expand_as(probs_prod)
+    probs_prod = torch.prod(probs_by_att + 1e-12, 2)
+    denom = probs_prod.sum(1)[:,None]  # [batch_size, 1]
+    probs = probs_prod / denom
     return probs
 
 ###
@@ -320,7 +319,7 @@ def devise_train(m, x, labels, data, att_crit=None, optimizers=None):
     # wrt input is 0
     losses = (0.1 + tmv_image - correct_contrib.expand_as(tmv_image)).clamp(min=0.0)
     # losses.scatter_(1, labels[:, None], 0.0)
-    loss = m.l2_penalty + losses.sum(1).squeeze().mean()
+    loss = m.l2_penalty + losses.sum(1).mean()
     return loss
 
 

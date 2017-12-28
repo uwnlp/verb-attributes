@@ -97,9 +97,8 @@ def eval(model, ckpt, use_att=False, use_emb=False, fullvocab=False, gold_atts=T
     for img_batch, label_batch in tqdm(test_iter):
         probs_.append(test_update(img_batch, label_batch))
         labels_.append(label_batch.data)
-        probs_full_.append(test_update(img_batch, label_batch))
+        probs_full_.append(full_update(img_batch, label_batch))
         labels_full_.append(label_batch.data + offset)
-
     ranks_np = get_ranking(torch.cat(probs_,0), torch.cat(labels_, 0))[0].cpu().numpy()
     top1_acc = np.mean(ranks_np==0)*100
     top5_acc = np.mean(ranks_np<5)*100

@@ -2,8 +2,8 @@ import torch
 
 
 def _normalize(input_data, eps=1e-8):
-    input_data_denom = torch.sqrt(torch.sum(torch.pow(input_data, 2), 1)).clamp(min=1e-8)
-    normed = input_data / input_data_denom.expand_as(input_data)
+    input_data_denom = torch.sqrt(torch.sum(torch.pow(input_data, 2), 1)).clamp(min=1e-8)[:,None]
+    normed = input_data / input_data_denom
     return normed
 
 
