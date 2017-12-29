@@ -70,7 +70,7 @@ def _load_attributes(imsitu_only=False):
             if v not in list(merged_df.template):
                 print("NO {}".format(v))
         merged_df = pd.DataFrame([
-            merged_df.iloc[merged_df[merged_df.template == v].index[0]].T for v in imsitu_verbs
+            merged_df.iloc[merged_df[merged_df.template == v].index[0]].T.rename(idx) for idx, v in enumerate(imsitu_verbs)
         ])
     # Remove the in_imsitu and verb information (only templates are relevant)
     merged_df = merged_df.drop(['in_imsitu', 'verb'], 1)
