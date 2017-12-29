@@ -796,8 +796,8 @@ score,False,False,True,True
 scowl,True,False,False,False
 scrabble,True,False,False,False
 scramble,False,True,False,False
-scrap,True,False,False,True
-scrape,False,True,False,False
+scrape,True,False,False,True
+scrap,False,True,False,False
 scratch,True,False,False,True
 scrawl,True,False,False,False
 scream,True,False,False,False
@@ -1030,7 +1030,8 @@ tag,True,False,False,False
 tail,True,False,False,False
 take,True,False,False,False
 talk,True,False,False,True
-tap,True,False,False,True
+tap,True,False,False,False
+tape,True,False,False,True
 taste,True,False,False,True
 tattoo,True,False,False,True
 taxi,True,False,False,True

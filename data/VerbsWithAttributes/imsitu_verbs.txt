@@ -183,8 +183,8 @@ gnaw
 grieve
 grill
 grimace
-grin
 grind
+grin
 guard
 handcuff
 hang
@@ -264,8 +264,8 @@ officiate
 open
 operate
 overflow
-pack
 package
+pack
 paint
 panhandle
 parachute
@@ -283,8 +283,8 @@ phone
 photograph
 pick
 pilot
-pin
 pinch
+pin
 pitch
 place
 plant
@@ -344,7 +344,7 @@ say
 scold
 scoop
 score
-scrap
+scrape
 scratch
 scrub
 seal
@@ -439,7 +439,7 @@ swing
 swoop
 tackle
 talk
-tap
+tape
 taste
 tattoo
 taxi
