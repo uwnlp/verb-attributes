@@ -16,7 +16,12 @@ from data.attribute_loader import Attributes
 from config import ATTRIBUTES_SPLIT, ATTRIBUTES_PATH
 import os
 
-train_data, val_data, test_data = ImSitu.splits(zeroshot=True, test_full=True)
+
+# TEMPORARILY USING INFINITIVE HERE!!!!!
+# TODO TODO TODO remove
+train_data, val_data, test_data = ImSitu.splits(zeroshot=True, #test_full=True,
+                                                word_type='infinitive',
+                                                )
 _, _, test_iter = CudaDataLoader.splits(
     train_data, val_data, test_data, batch_size=32, num_workers=2)
 att_crit = AttributeLoss(train_data.attributes.domains, size_average=True)
@@ -111,6 +116,11 @@ def eval(model, ckpt, use_att=False, use_emb=False, fullvocab=False, gold_atts=T
                      index=['top1_acc', 'top5_acc', 'top1_acc_full', 'top5_acc_full'])
 
 if __name__ == '__main__':
+    ours_emb_gold_inf = eval('ours', ckpt='imsitu_inf/e1/ckpt_2.tar',
+                            use_att=False, use_emb=True)
+    print(ours_emb_gold_inf)
+    assert False
+
 #    ours_attemb_gold = eval('ours', ckpt='imsitu_ours/embatt/ckpt_7.tar',
 #                            use_att=True, use_emb=True)
 #    print(ours_attemb_gold)

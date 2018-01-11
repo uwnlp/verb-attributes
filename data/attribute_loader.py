@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 
 from config import ATTRIBUTES_PATH, ATTRIBUTES_SPLIT, IMSITU_VERBS, GLOVE_PATH, GLOVE_TYPE, \
-    DEFNS_PATH, IMSITU_VAL_LIST
+    DEFNS_PATH, IMSITU_VAL_LIST, DATA_PATH
 import torch
 from text.torchtext.vocab import load_word_vectors
 from torch.autograd import Variable
@@ -176,10 +176,17 @@ def _get_template_emb(template, wv_dict, wv_arr):
             raise ValueError("Error on {}".format(template))
         return (wv_arr[ind0] + wv_arr[ind1]) / 2.0
 
+    if template == 'cheerlead':
+        return (wv_arr[wv_dict.get('cheer', None)] + wv_arr[wv_dict.get('lead', None)]) / 2.0
+    if template == 'intermingle':
+        return (wv_arr[wv_dict.get('inter', None)] + wv_arr[wv_dict.get('mingle', None)]) / 2.0
+    if template == 'moisturize':
+        return wv_arr[wv_dict.get('moisture', None)]
+
     raise ValueError("Problem with {}".format(template))
 
 
-def _load_vectors(words):
+def _load_glove(words):
     """
     Loads word vectors of a list of words
     :param words: 
@@ -191,6 +198,36 @@ def _load_vectors(words):
         embeds[i] = _get_template_emb(token, wv_dict, wv_arr)
     return embeds
 
+
+def _load_counterfit(words):
+    """
+    Loads word vectors of a list of words
+    :param words:
+    :return:
+    """
+    wv_dict, wv_arr, _ = load_word_vectors(DATA_PATH, 'cfv', 300)
+    embeds = torch.Tensor(len(words), 300).zero_()
+    for i, token in enumerate(words):
+        embeds[i] = _get_template_emb(token, wv_dict, wv_arr)
+    return embeds
+
+# def _load_nondist(words):
+#     """
+#     Loads word vectors of a list of words
+#     :param words:
+#     :return:
+#     """
+#     from scipy.sparse import csr_matrix
+#
+#     with open(os.path.join('sparse_vector_list.txt'), 'r') as f:
+#         word2ind = {w:i for i, w in enumerate(f.read().splitlines())}
+#
+#     rows = np.array([word2ind[x] for x in words])
+#
+#     binary_vecs = np.load(os.path.join(DATA_PATH, 'sparse_vectors.npy'))
+#     # Get le rows
+#     embeds = binary_vecs[rows]
+#     return embeds
 
 class Attributes(object):
     def __init__(self, vector_type='glove', word_type='lemma', use_train=False, use_val=False, use_test=False, imsitu_only=False,
@@ -223,9 +260,16 @@ class Attributes(object):
         else:
             l2i = get_lemma_to_infinitive()
             all_words = [l2i[w] for w in self.atts_df.index.values]
-         
-        self.embeds = Variable(_load_vectors(all_words),
-                               volatile=not use_train)
+
+        if vector_type == 'glove':
+            matrix = _load_glove(all_words)
+        elif vector_type == 'counterfit':
+            matrix = _load_counterfit(all_words)
+        else:
+            raise ValueError("unspecified vector type")
+
+
+        self.embeds = Variable(matrix, volatile=not use_train)
 
     @property
     def _balanced_inds(self):
