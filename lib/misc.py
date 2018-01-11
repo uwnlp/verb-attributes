@@ -1,5 +1,5 @@
 import torch
-
+from torch.nn.utils.clip_grad import clip_grad_norm
 
 def _normalize(input_data, eps=1e-8):
     input_data_denom = torch.sqrt(torch.sum(torch.pow(input_data, 2), 1)).clamp(min=1e-8)[:,None]
@@ -94,6 +94,8 @@ def optimize(f):
         loss = f(*args, **kwargs)
         loss.backward()
         for opt in kwargs['optimizers']:
+            all_params = (p for group in opt.param_groups for p in group['params'])
+            clip_grad_norm(all_params, max_norm=5.0, norm_type=2)
             opt.step()
         return loss.data[0]
     return optimize_loop_wrapper

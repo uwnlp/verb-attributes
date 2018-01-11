@@ -46,7 +46,7 @@ class ModelConfig(object):
     """Wrapper class for model hyperparameters."""
     def __init__(self, margin=0.1, lr=1e-3, batch_size=64, eps=1e-8, beta1=0.9, beta2=0.999,
                  ckpt='', dropout=0.2, save_dir='save', imsitu_model='ours', l2_weight=1e-3,
-                 use_att=False, use_emb=False):
+                 use_att=False, use_emb=False, vector_type='glove', use_inf=False):
         """
         Defaults
         """
@@ -63,6 +63,8 @@ class ModelConfig(object):
         self.use_emb = use_emb
         self.use_att = use_att
         self.l2_weight=l2_weight
+        self.vector_type = vector_type
+        self.use_inf=use_inf
         assert imsitu_model in ('iap', 'dap', 'ours', 'devise')
 
         self.parser = self.setup_parser()
@@ -112,4 +114,6 @@ class ModelConfig(object):
         parser.add_argument('-use_att', dest='use_att',
                             help='If well use attributes for zeroshot',
                             default=None, action='store_true')
+        parser.add_argument('-v', dest='vector_type', help='GloVe for now', default='glove')
+        parser.add_argument('-use_inf', dest='use_inf', help='True if use inf otherwise use lemma', default=None, action='store_true')
         return parser

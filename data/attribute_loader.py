@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 
 from config import ATTRIBUTES_PATH, ATTRIBUTES_SPLIT, IMSITU_VERBS, GLOVE_PATH, GLOVE_TYPE, \
-    DEFNS_PATH
+    DEFNS_PATH, IMSITU_VAL_LIST
 import torch
 from text.torchtext.vocab import load_word_vectors
 from torch.autograd import Variable
@@ -37,6 +37,16 @@ def invert_permutation(p):
     s = {ind: i for i, ind in enumerate(p)}
     return s
 
+def get_lemma_to_infinitive():
+    with open(IMSITU_VERBS, 'r') as f:
+        imsitu_verbs_lemmatized = f.read().splitlines()
+    with open(IMSITU_VAL_LIST, 'r') as f:
+        imsitu_verbs_nonlemmatized = {int(x.split(' ')[1]):x.split('_')[0] for x in f.read().splitlines()}
+    imsitu_verbs_nonlemmatized = [imsitu_verbs_nonlemmatized[x] for x in range(504)]
+
+    l2f = {lem:inf for inf, lem in zip(imsitu_verbs_nonlemmatized, imsitu_verbs_lemmatized)}
+    assert len(l2f) == 504
+    return l2f
 
 def _load_imsitu_verbs():
     """
@@ -183,7 +193,7 @@ def _load_vectors(words):
 
 
 class Attributes(object):
-    def __init__(self, use_train=False, use_val=False, use_test=False, imsitu_only=False,
+    def __init__(self, vector_type='glove', word_type='lemma', use_train=False, use_val=False, use_test=False, imsitu_only=False,
                  use_defns=False, first_defn_at_test=True):
         """
         Use this class to represent a chunk of attributes for each of the test labels. 
@@ -205,7 +215,16 @@ class Attributes(object):
 
         self.atts_matrix = Variable(torch.LongTensor(self.atts_df[COLUMNS].as_matrix()),
                                     volatile=not use_train)
-        self.embeds = Variable(_load_vectors(self.atts_df.index.values),
+
+        # LOAD THE VECTORS
+        assert word_type in ('lemma', 'infinitive')
+        if word_type == 'lemma':
+            all_words = self.atts_df.index.values
+        else:
+            l2i = get_lemma_to_infinitive()
+            all_words = [l2i[w] for w in self.atts_df.index.values]
+         
+        self.embeds = Variable(_load_vectors(all_words),
                                volatile=not use_train)
 
     @property

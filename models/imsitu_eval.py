@@ -111,38 +111,45 @@ def eval(model, ckpt, use_att=False, use_emb=False, fullvocab=False, gold_atts=T
                      index=['top1_acc', 'top5_acc', 'top1_acc_full', 'top5_acc_full'])
 
 if __name__ == '__main__':
-    ours_attemb_gold = eval('ours', ckpt='imsitu_ours/embatt/ckpt_7.tar',
+#    ours_attemb_gold = eval('ours', ckpt='imsitu_ours/embatt/ckpt_7.tar',
+#                            use_att=True, use_emb=True)
+#    print(ours_attemb_gold)
+
+    ours_attemb_gold = eval('ours', ckpt='imsitu_hyperparams2/ea1/ckpt_10.tar',
                             use_att=True, use_emb=True)
     print(ours_attemb_gold)
 
-    devise = eval('devise', ckpt='imsitu_devise/d1/ckpt_1.tar', use_emb=True)
-    print(devise)
 
-    ours_attemb_pred = eval('ours', ckpt='imsitu_ours/embatt/ckpt_7.tar',
-                            use_att=True, use_emb=True, gold_atts=False)
-    ours_ens = eval('ours', ckpt='imsitu_ours/embatt/ckpt_7.tar',
-                            use_att=True, use_emb=True, ens=True)
-    ours_goldpred = eval('ours', ckpt='imsitu_ours/att/ckpt_1.tar',
-                            use_att=True, use_emb=False, ens=True)
+    #devise = eval('devise', ckpt='imsitu_devise/d1/ckpt_1.tar', use_emb=True)
+    #print(devise)
 
-    dap_att_gold = eval('dap', ckpt='imsitu_dap/att/ckpt_9.tar', use_att=True)
+    #ours_attemb_pred = eval('ours', ckpt='imsitu_ours/embatt/ckpt_7.tar',
+    #                        use_att=True, use_emb=True, gold_atts=False)
+    #ours_ens = eval('ours', ckpt='imsitu_ours/embatt/ckpt_7.tar',
+    #                        use_att=True, use_emb=True, ens=True)
+    #ours_goldpred = eval('ours', ckpt='imsitu_ours/att/ckpt_1.tar',
+    #                        use_att=True, use_emb=False, ens=True)
 
-    dap_att_pred = eval('dap', ckpt='imsitu_dap/att/ckpt_9.tar', use_att=True, gold_atts=False)
+    #dap_att_gold = eval('dap', ckpt='imsitu_dap/att/ckpt_9.tar', use_att=True)
 
-    ours_att_gold = eval('ours', ckpt='imsitu_ours/att/ckpt_1.tar', use_att=True)
-    ours_att_pred = eval('ours', ckpt='imsitu_ours/att/ckpt_1.tar', use_att=True, gold_atts=False)
+    #dap_att_pred = eval('dap', ckpt='imsitu_dap/att/ckpt_9.tar', use_att=True, gold_atts=False)
 
-    ours_emb = eval('ours', ckpt='imsitu_ours/emb/ckpt_1.tar', use_emb=True)
+    #ours_att_gold = eval('ours', ckpt='imsitu_ours/att/ckpt_1.tar', use_att=True)
+    #ours_att_pred = eval('ours', ckpt='imsitu_ours/att/ckpt_1.tar', use_att=True, gold_atts=False)
 
+    #ours_emb = eval('ours', ckpt='imsitu_hyperparams2/ea1na/ckpt_3.tar', use_emb=True)
+    #print(ours_emb)
+    ours_emb = eval('ours', ckpt='imsitu_inf/e1/ckpt_5.tar', use_emb=True)
+    print(ours_emb)
 
-    rez = pd.DataFrame([dap_att_gold, ours_att_gold, devise, ours_emb,
-                        ours_att_pred, dap_att_pred, ours_attemb_gold,
-                         ours_attemb_pred, ours_ens, ours_goldpred],
-                       index=['dap_att_gold', 'ours_att_gold', 'devise', 'ours_emb',
-                              'ours_att_pred', 'dap_att_pred',
-                              'ours_attemb_gold',
-                              'ours_attemb_pred',
-                              'ours_ens',
-                              'ours_att_predgold',
-                              ])
-    rez.to_csv('imsitu_results2.csv', float_format='%.2f')
+    #rez = pd.DataFrame([dap_att_gold, ours_att_gold, devise, ours_emb,
+    #                    ours_att_pred, dap_att_pred, ours_attemb_gold,
+    #                     ours_attemb_pred, ours_ens, ours_goldpred],
+    #                   index=['dap_att_gold', 'ours_att_gold', 'devise', 'ours_emb',
+    #                          'ours_att_pred', 'dap_att_pred',
+    #                          'ours_attemb_gold',
+    #                          'ours_attemb_pred',
+    #                          'ours_ens',
+    #                          'ours_att_predgold',
+    #                          ])
+    #rez.to_csv('imsitu_results2.csv', float_format='%.2f')

@@ -21,7 +21,8 @@ from lib.attribute_loss import AttributeLoss
 args = ModelConfig(lr=1e-5, batch_size=32, eps=1e-1, save_dir='imsitu_trainOURS',
                    imsitu_model='ours', l2_weight=1e-4)
 
-train_data, val_data, test_data = ImSitu.splits(zeroshot=True)
+train_data, val_data, test_data = ImSitu.splits(zeroshot=True, 
+    vector_type=args.vector_type, word_type='infinitive' if args.use_inf else 'lemma')
 
 train_iter, val_iter, test_iter = CudaDataLoader.splits(
     train_data, val_data, test_data, batch_size=args.batch_size, num_workers=2)

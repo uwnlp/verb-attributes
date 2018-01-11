@@ -55,7 +55,11 @@ class ImSitu(torch.utils.data.Dataset):
                  use_train_images=False,
                  use_val_images=False,
                  use_test_images=False,
+                 vector_type='glove',
+                 word_type='lemma',
                  ):
+        self.vector_type = vector_type
+        self.word_type = word_type
         self.use_train_verbs = use_train_verbs
         self.use_val_verbs = use_val_verbs
         self.use_test_verbs = use_test_verbs
@@ -70,8 +74,11 @@ class ImSitu(torch.utils.data.Dataset):
         if not (self.use_train_verbs or self.use_val_verbs or self.use_test_verbs):
             raise ValueError("No images selected!")
 
-        self.attributes = Attributes(use_train=self.use_train_verbs, use_val=self.use_val_verbs,
-                                     use_test=self.use_test_verbs, imsitu_only=True)
+        self.attributes = Attributes(
+            vector_type=vector_type,
+            word_type=word_type,
+            use_train=self.use_train_verbs, use_val=self.use_val_verbs,
+            use_test=self.use_test_verbs, imsitu_only=True)
 
         self.examples = []
         for mode, to_use in zip(
@@ -99,13 +106,13 @@ class ImSitu(torch.utils.data.Dataset):
         """
 
         if zeroshot:
-            train_cls = cls(use_train_verbs=True, use_train_images=True, use_val_images=True)
-            val_cls = cls(use_val_verbs=True, use_train_images=True, use_val_images=True)
-            test_cls = cls(use_test_verbs=True, use_test_images=True)
+            train_cls = cls(use_train_verbs=True, use_train_images=True, use_val_images=True, **kwargs)
+            val_cls = cls(use_val_verbs=True, use_train_images=True, use_val_images=True, **kwargs)
+            test_cls = cls(use_test_verbs=True, use_test_images=True, **kwargs)
         else:
-            train_cls = cls(use_train_verbs=True, use_train_images=True)
-            val_cls = cls(use_train_verbs=True, use_val_images=True)
-            test_cls = cls(use_train_verbs=True, use_test_images=True)
+            train_cls = cls(use_train_verbs=True, use_train_images=True, **kwargs)
+            val_cls = cls(use_train_verbs=True, use_val_images=True, **kwargs)
+            test_cls = cls(use_train_verbs=True, use_test_images=True, **kwargs)
 
         return train_cls, val_cls, test_cls
 
