@@ -6,7 +6,7 @@ from argparse import ArgumentParser
 
 ROOT_PATH = os.path.dirname(os.path.realpath(__file__))
 DATA_PATH = os.path.join(ROOT_PATH, 'data')
-IMSITU_PATH = '/home/rowan/datasets/imsitu'
+IMSITU_PATH = '/home/rowan/datasets/imsitu' # Change this!
 
 def path(fn):
     return os.path.join(DATA_PATH, fn)
@@ -26,11 +26,14 @@ ATTRIBUTES_SPLIT = vwa_path('attributes_split.csv')
 DEFNS_PATH = vwa_path('verb_definitions.csv')
 DICTIONARY_PATH = path('dictionary_challenge.pkl')
 
+# Download this from https://s3.amazonaws.com/my89-frame-annotation/public/OpenFrame500.tab
 IMSITU_LABELS = imsitu_path('OpenFrame500.tab')
+
+# Download from https://s3.amazonaws.com/my89-frame-annotation/public/of500_images_resized.tar
 IMSITU_IMGS = imsitu_path('of500_images')
-IMSITU_TRAIN_LIST = imsitu_path('train_set.txt')
-IMSITU_VAL_LIST = imsitu_path('dev_set.txt')
-IMSITU_TEST_LIST = imsitu_path('test_set.txt')
+IMSITU_TRAIN_LIST = vwa_path('imsitu_split/train_set.txt')
+IMSITU_VAL_LIST = vwa_path('imsitu_split/dev_set.txt')
+IMSITU_TEST_LIST = vwa_path('imsitu_split/test_set.txt')
 IMSITU_VERBS = vwa_path('imsitu_verbs.txt')
 
 GLOVE_PATH = path('glove.840B.300d')

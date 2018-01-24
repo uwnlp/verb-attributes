@@ -17,9 +17,12 @@ year = "2017",
 
 [Our annotations are available in this folder.](data/VerbsWithAttributes) See the readme there for more information.
 
+To download the imSitu images, you'll need to follow the instructions from the install script [here.](https://github.com/my89/SituationCrf/tree/master)
+
 ## Dependencies
 
-Our code uses PyTorch 1.12 amongst other things; see [requirements.txt](requirements.txt) for dependencies. For ease of use, I recommend installing everything in a virtualenv. Ping me if there's a dependency missing (I tried to prune dependencies not needed for this project in particular).
+I originally wrote this code with PyTorch 1.12, but I've updated it to hopefully work for PyTorch 3.0.
+See [requirements.txt](requirements.txt) for dependencies. For ease of use, I recommend installing everything in a virtualenv. Ping me if there's a dependency missing (I tried to prune dependencies not needed for this project in particular).
 
 ## Reproducing our results
 

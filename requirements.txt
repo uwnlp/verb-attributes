@@ -1,6 +1,6 @@
 dill==0.2.6
 numpy==1.12.1
-pandas==0.20.2
+pandas==0.22.0
 Pillow==4.1.1
 scikit-image==0.13.0
 scikit-learn==0.18.2
@@ -8,6 +8,6 @@ scipy==0.19.0
 seaborn==0.8
 six==1.10.0
 spacy==1.8.2
-torch==0.1.12.post2
-torchvision==0.1.8
-tqdm==4.11.2
+torch==0.3.0.post4
+torchvision==0.2.0
+tqdm==4.15.0
