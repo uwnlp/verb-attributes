@@ -55,14 +55,15 @@ def deploy(word_inds, defns):
 def log_val(word_inds, defns, cost, rank, ranking, num_ex=10):
     print("mean rank {:.1f}------------------------------------------".format(np.mean(rank)))
 
-    engl_defns, ls = pad_packed_sequence(defns, batch_first=True)
+    engl_defns, ls = pad_packed_sequence(defns, batch_first=True, padding_value=0)
     spacing = np.linspace(len(ls) // num_ex, len(ls), endpoint=False, num=num_ex, dtype=np.int64)
 
     engl_defns = [' '.join([val_data.fields['text'].vocab.itos[x] for x in d[1:(l - 1)]])
                   for d, l in zip(engl_defns.cpu().data.numpy()[spacing], [ls[s] for s in spacing])]
-    top_scorers = [[val_data.fields['label'].vocab.itos[x] for x in t]
-                   for t in ranking[spacing, :3]]
-    words = [val_data.fields['label'].vocab.itos[wi] for wi in word_inds.cpu().numpy()[spacing]]
+
+    top_scorers = [[val_data.fields['label'].vocab.itos[int(x)] for x in t]
+                   for t in ranking.data.cpu().numpy()[spacing, :3]]
+    words = [val_data.fields['label'].vocab.itos[int(wi)] for wi in word_inds.cpu().numpy()[spacing]]
 
     for w, (word, rank_, top3, l, defn) in enumerate(
             zip(words, rank, top_scorers, cost, engl_defns)):

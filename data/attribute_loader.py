@@ -15,8 +15,67 @@ import pandas as pd
 from config import ATTRIBUTES_PATH, ATTRIBUTES_SPLIT, IMSITU_VERBS, GLOVE_PATH, GLOVE_TYPE, \
     DEFNS_PATH, IMSITU_VAL_LIST, DATA_PATH
 import torch
-from text.torchtext.vocab import load_word_vectors
 from torch.autograd import Variable
+import zipfile
+from six.moves.urllib.request import urlretrieve
+from tqdm import trange, tqdm
+
+### From older torchtext
+URL = {
+    'glove.42B': 'http://nlp.stanford.edu/data/glove.42B.300d.zip',
+    'glove.840B': 'http://nlp.stanford.edu/data/glove.840B.300d.zip',
+    'glove.twitter.27B': 'http://nlp.stanford.edu/data/glove.twitter.27B.zip',
+    'glove.6B': 'http://nlp.stanford.edu/data/glove.6B.zip'
+}
+
+def reporthook(t):
+    """https://github.com/tqdm/tqdm"""
+    last_b = [0]
+    def inner(b=1, bsize=1, tsize=None):
+        """
+        b: int, optionala
+        Number of blocks just transferred [default: 1].
+        bsize: int, optional
+        Size of each block (in tqdm units) [default: 1].
+        tsize: int, optional
+        Total size (in tqdm units). If [default: None] remains unchanged.
+        """
+        if tsize is not None:
+            t.total = tsize
+        t.update((b - last_b[0]) * bsize)
+        last_b[0] = b
+    return inner
+
+def load_word_vectors(root, wv_type, dim):
+    """Load word vectors from a path, trying .pt, .txt, and .zip extensions."""
+    if isinstance(dim, int):
+        dim = str(dim) + 'd'
+    fname = os.path.join(root, wv_type + '.' + dim)
+    if os.path.isfile(fname + '.pt'):
+        fname_pt = fname + '.pt'
+        print('loading word vectors from', fname_pt)
+        return torch.load(fname_pt)
+    if os.path.isfile(fname + '.txt'):
+        fname_txt = fname + '.txt'
+        cm = open(fname_txt, 'rb')
+        cm = [line for line in cm]
+    elif os.path.basename(wv_type) in URL:
+        url = URL[wv_type]
+        print('downloading word vectors from {}'.format(url))
+        filename = os.path.basename(fname)
+        if not os.path.exists(root):
+            os.makedirs(root)
+        with tqdm(unit='B', unit_scale=True, miniters=1, desc=filename) as t:
+            fname, _ = urlretrieve(url, fname, reporthook=reporthook(t))
+            with zipfile.ZipFile(fname, "r") as zf:
+                print('extracting word vectors into {}'.format(root))
+                zf.extractall(root)
+        if not os.path.isfile(fname + '.txt'):
+            raise RuntimeError('no word vectors of requested dimension found')
+        return load_word_vectors(root, wv_type, dim)
+    else:
+        raise RuntimeError('unable to load word vectors')
+#######
 
 np.random.seed(123456)
 random.seed(123)
@@ -182,6 +241,9 @@ def _get_template_emb(template, wv_dict, wv_arr):
         return (wv_arr[wv_dict.get('inter', None)] + wv_arr[wv_dict.get('mingle', None)]) / 2.0
     if template == 'moisturize':
         return wv_arr[wv_dict.get('moisture', None)]
+    else:
+        print("Problem with {}".format(template))
+        return torch.FloatTensor(np.random.randn(300))
 
     raise ValueError("Problem with {}".format(template))
 
@@ -205,29 +267,12 @@ def _load_counterfit(words):
     :param words:
     :return:
     """
-    wv_dict, wv_arr, _ = load_word_vectors(DATA_PATH, 'cfv', 300)
+    wv_dict, wv_arr, _ = load_word_vectors(DATA_PATH, 'ffdnglove', 300)
+    # wv_dict, wv_arr, _ = load_word_vectors(DATA_PATH, 'cfv', 300)
     embeds = torch.Tensor(len(words), 300).zero_()
     for i, token in enumerate(words):
         embeds[i] = _get_template_emb(token, wv_dict, wv_arr)
     return embeds
-
-# def _load_nondist(words):
-#     """
-#     Loads word vectors of a list of words
-#     :param words:
-#     :return:
-#     """
-#     from scipy.sparse import csr_matrix
-#
-#     with open(os.path.join('sparse_vector_list.txt'), 'r') as f:
-#         word2ind = {w:i for i, w in enumerate(f.read().splitlines())}
-#
-#     rows = np.array([word2ind[x] for x in words])
-#
-#     binary_vecs = np.load(os.path.join(DATA_PATH, 'sparse_vectors.npy'))
-#     # Get le rows
-#     embeds = binary_vecs[rows]
-#     return embeds
 
 class Attributes(object):
     def __init__(self, vector_type='glove', word_type='lemma', use_train=False, use_val=False, use_test=False, imsitu_only=False,
