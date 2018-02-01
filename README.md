@@ -24,6 +24,11 @@ To download the imSitu images, you'll need to follow the instructions from the i
 I originally wrote this code with PyTorch 1.12, but I've updated it to hopefully work for PyTorch 3.0.
 See [requirements.txt](requirements.txt) for dependencies. For ease of use, I recommend installing everything in a virtualenv. Ping me if there's a dependency missing (I tried to prune dependencies not needed for this project in particular).
 
+## Installing the data that we used
+
+- You'll need to download the imsitu dataset from [here](https://github.com/my89/SituationCrf/tree/master) and update `IMSITU_PATH` in config.py accordingly.
+- If you want to pretrain on the dictionary challenge dataset, then download it from [here](http://www.cl.cam.ac.uk/~fh295/dicteval.html). I renamed the file `training_data.pkl` (in the archive `training_data.tgz`) to `dictionary_challenge.pkl` and moved it to my data folder.
+
 ## Reproducing our results
 
 Here's the rough outline to reproduce my results:
