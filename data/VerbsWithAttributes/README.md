@@ -19,7 +19,7 @@ This contains all of the attributes we mined.
 
 1. `intrans`: 1 if the verb can be used intransitively, 0 otherwise
 1. `trans_pers`: 1 if the verb can be used in the form "<verb> someone", 0 otherwise
-1. `intrans`: 1 if the verb can be used in the form "<verb> something", 0 otherwise
+1. `trans_obj`: 1 if the verb can be used in the form "<verb> something", 0 otherwise
 1. `atomicity`: Contains annotation of verbal aspect.
     - 0: Accomplishment
     - 1: unclear without context
